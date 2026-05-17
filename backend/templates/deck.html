@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ deck.title|default('Presentation') }}</title>
+<style>
+  :root {
+    --primary: {{ theme.primary }};
+    --secondary: {{ theme.secondary }};
+    --accent: {{ theme.accent }};
+    --bg: {{ theme.background }};
+    --surface: {{ theme.surface }};
+    --text: {{ theme.text }};
+    --muted: {{ theme.muted }};
+    --heading-font: {{ theme.heading_font|safe }};
+    --body-font: {{ theme.body_font|safe }};
+    --mono-font: {{ theme.mono_font|safe }};
+  }
+  @import url('https://rsms.me/inter/inter.css');
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #111; }
+  body { font-family: var(--body-font); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  .slide {
+    width: 1600px;
+    height: 900px;
+    background: var(--bg);
+    color: var(--text);
+    position: relative;
+    overflow: hidden;
+    margin: 24px auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,.25);
+    page-break-after: always;
+    break-after: page;
+    display: flex;
+    flex-direction: column;
+    padding: 72px 96px 60px 96px;
+  }
+  .slide:last-child { page-break-after: auto; }
+
+  /* Accent bar (consulting template) */
+  .slide.tpl-consulting::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 8px;
+    background: var(--primary);
+  }
+
+  .slide.tpl-executive { padding: 88px 120px; }
+  .slide.tpl-dark-board { color: #E5E7EB; }
+
+  /* Header */
+  .s-head {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+    padding-bottom: 14px; margin-bottom: 28px;
+    font-size: 14px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
+  }
+  .s-head .deck-title { font-weight: 600; }
+  .s-head .logo { height: 28px; }
+  .s-head .chapter { color: var(--primary); font-weight: 700; }
+
+  /* Footer */
+  .s-foot {
+    position: absolute; left: 96px; right: 96px; bottom: 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--muted);
+  }
+  .s-foot .page { font-variant-numeric: tabular-nums; }
+  .s-foot .footnote { font-style: italic; color: var(--muted); max-width: 60%; }
+
+  /* Titles */
+  h1.s-title, h2.s-title {
+    font-family: var(--heading-font);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px 0;
+  }
+  h1.s-title { font-size: 48px; line-height: 1.1; }
+  h2.s-title { font-size: 36px; line-height: 1.15; }
+  .s-subtitle { font-size: 20px; color: var(--muted); margin: 0 0 24px 0; font-weight: 400; }
+
+  /* Body */
+  .s-body { font-size: 19px; line-height: 1.55; max-width: 1300px; }
+  .s-body p { margin: 0 0 14px 0; }
+  .s-body strong { color: var(--primary); font-weight: 700; }
+
+  /* Bullets */
+  ul.s-bullets { list-style: none; padding: 0; margin: 18px 0; font-size: 22px; line-height: 1.5; }
+  ul.s-bullets li {
+    position: relative; padding-left: 36px; margin-bottom: 16px;
+  }
+  ul.s-bullets li::before {
+    content: ''; position: absolute; left: 0; top: 14px;
+    width: 18px; height: 3px; background: var(--primary); border-radius: 2px;
+  }
+
+  /* Two-column */
+  .s-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; flex: 1; }
+  .s-col h3 { font-size: 22px; color: var(--primary); margin: 0 0 16px 0; }
+  .s-col ul { list-style: none; padding: 0; margin: 0; font-size: 18px; line-height: 1.5; }
+  .s-col li { position: relative; padding-left: 22px; margin-bottom: 12px; }
+  .s-col li::before { content: '▸'; position: absolute; left: 0; color: var(--primary); }
+
+  /* KPI grid */
+  .s-kpis { display: grid; gap: 24px; flex: 1; align-content: center; }
+  .s-kpis.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .s-kpis.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .s-kpis.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .kpi {
+    background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+    border-radius: 14px;
+    padding: 28px 32px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 180px;
+  }
+  .kpi .label { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  .kpi .value { font-family: var(--heading-font); font-size: 56px; font-weight: 800; color: var(--text); letter-spacing: -.02em; line-height: 1; margin: 12px 0; }
+  .kpi .delta { font-size: 16px; font-weight: 600; }
+  .kpi .delta.up { color: #10B981; }
+  .kpi .delta.down { color: #EF4444; }
+  .kpi .delta.flat { color: var(--muted); }
+
+  /* Quote */
+  .s-quote { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .s-quote blockquote {
+    font-family: var(--heading-font);
+    font-size: 44px; line-height: 1.25; font-weight: 600;
+    color: var(--text);
+    margin: 0; padding: 0 0 0 36px;
+    border-left: 6px solid var(--primary);
+    letter-spacing: -.01em;
+  }
+  .s-quote .author { margin-top: 28px; font-size: 18px; color: var(--muted); font-weight: 500; }
+  .s-quote .author::before { content: '— '; }
+
+  /* Table */
+  .s-table { flex: 1; overflow: hidden; }
+  table.s-data {
+    width: 100%; border-collapse: collapse; font-size: 18px;
+  }
+  table.s-data thead th {
+    text-align: left; padding: 14px 18px; font-size: 14px; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted); border-bottom: 2px solid var(--primary);
+    font-weight: 700;
+  }
+  table.s-data tbody td { padding: 14px 18px; border-bottom: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); }
+  table.s-data tbody tr:nth-child(odd) td { background: color-mix(in srgb, var(--primary) 3%, transparent); }
+
+  /* Timeline */
+  .s-timeline { flex: 1; display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .tl-row { display: grid; grid-template-columns: 180px 24px 1fr; gap: 16px; align-items: start; }
+  .tl-when { color: var(--primary); font-weight: 700; font-size: 18px; text-align: right; padding-top: 4px; }
+  .tl-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--primary);
+    margin: 6px auto 0;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
+    position: relative;
+  }
+  .tl-dot::after {
+    content: ''; position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    width: 2px; height: 60px; background: color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+  .tl-row:last-child .tl-dot::after { display: none; }
+  .tl-body .what { font-size: 20px; font-weight: 600; }
+  .tl-body .detail { color: var(--muted); font-size: 16px; margin-top: 4px; }
+
+  /* SWOT */
+  .s-swot { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px; }
+  .swot-cell { border-radius: 14px; padding: 22px 26px; border: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
+  .swot-cell h4 { margin: 0 0 12px 0; font-size: 18px; text-transform: uppercase; letter-spacing: .1em; }
+  .swot-cell ul { margin: 0; padding-left: 20px; font-size: 16px; line-height: 1.45; }
+  .swot-s { background: color-mix(in srgb, #10B981 8%, var(--surface)); color: var(--text); }
+  .swot-s h4 { color: #059669; }
+  .swot-w { background: color-mix(in srgb, #F59E0B 8%, var(--surface)); }
+  .swot-w h4 { color: #B45309; }
+  .swot-o { background: color-mix(in srgb, var(--primary) 8%, var(--surface)); }
+  .swot-o h4 { color: var(--primary); }
+  .swot-t { background: color-mix(in srgb, #EF4444 8%, var(--surface)); }
+  .swot-t h4 { color: #B91C1C; }
+
+  /* Title slide */
+  .slide.layout-title { padding: 0; align-items: stretch; }
+  .title-wrap {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 0 120px; position: relative;
+  }
+  .title-wrap::before {
+    content: ''; position: absolute; left: 120px; top: 50%; transform: translateY(-200px);
+    width: 84px; height: 6px; background: var(--primary); border-radius: 3px;
+  }
+  .title-wrap h1 {
+    font-family: var(--heading-font);
+    font-size: 92px; font-weight: 800; line-height: 1.02; margin: 80px 0 24px 0;
+    letter-spacing: -0.035em; max-width: 1280px;
+  }
+  .title-wrap .sub { font-size: 28px; color: var(--muted); max-width: 1100px; line-height: 1.35; font-weight: 400; }
+  .title-wrap .meta { margin-top: 64px; display: flex; gap: 36px; font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
+  .title-wrap .meta b { color: var(--text); font-weight: 700; margin-left: 8px; }
+  .title-wrap .logo-corner { position: absolute; top: 56px; right: 96px; max-height: 64px; }
+
+  /* Section divider */
+  .slide.layout-section {
+    background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--secondary) 80%, var(--primary)) 100%);
+    color: #fff;
+    justify-content: center; align-items: flex-start;
+    padding: 0 120px;
+  }
+  .slide.layout-section .chapter-num { font-size: 22px; opacity: .7; letter-spacing: .25em; text-transform: uppercase; }
+  .slide.layout-section h2 { font-size: 84px; font-weight: 800; line-height: 1.05; letter-spacing: -.03em; margin: 16px 0 0; max-width: 1300px; }
+  .slide.layout-section .s-head, .slide.layout-section .s-foot { display: none; }
+  .slide.layout-section::before { display: none; }
+
+  /* Closing slide */
+  .slide.layout-closing .closing-wrap {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+  }
+  .slide.layout-closing h2 { font-size: 64px; margin: 0 0 32px 0; letter-spacing: -.025em; }
+  .slide.layout-closing .next-steps { font-size: 22px; line-height: 1.6; }
+  .slide.layout-closing .next-steps li { margin-bottom: 14px; }
+
+  /* Charts (SVG, see macro) */
+  .s-chart { flex: 1; display: flex; flex-direction: column; }
+  .chart-wrap { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .chart-wrap svg { width: 100%; height: 100%; max-height: 540px; }
+  .chart-insight {
+    margin-top: 16px; padding: 14px 18px;
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+    border-left: 4px solid var(--primary); border-radius: 6px;
+    font-size: 18px; color: var(--text);
+  }
+  .chart-insight b { color: var(--primary); }
+
+  /* Print */
+  @media print {
+    html, body { background: #fff; }
+    .slide { margin: 0; box-shadow: none; }
+  }
+
+  /* Speaker notes (hidden in print, shown only when ?notes=1) */
+  .s-notes { display: none; }
+  body.show-notes .s-notes {
+    display: block;
+    background: #FEF3C7; color: #78350F;
+    padding: 14px 18px; margin: -10px 24px 24px;
+    border-radius: 8px; font-size: 14px;
+    border-left: 4px solid #F59E0B;
+  }
+</style>
+</head>
+<body>
+{% set total = deck.slides|length %}
+{% for slide in deck.slides %}
+  {% set layout = slide.layout|default('bullets') %}
+  <section class="slide layout-{{ layout }} tpl-{{ theme.template }}{% if theme.dark %} dark{% endif %}" id="{{ slide.id }}">
+
+    {% if layout == 'title' %}
+      <div class="title-wrap">
+        {% if theme.logo %}<img class="logo-corner" src="{{ theme.logo }}" alt="logo">{% endif %}
+        <h1>{{ slide.title or deck.title }}</h1>
+        {% if slide.subtitle or deck.subtitle %}
+        <div class="sub">{{ slide.subtitle or deck.subtitle }}</div>
+        {% endif %}
+        <div class="meta">
+          {% if deck.author %}<span>Prepared by <b>{{ deck.author }}</b></span>{% endif %}
+          {% if deck.date %}<span>Date <b>{{ deck.date }}</b></span>{% endif %}
+          {% if deck.audience %}<span>For <b>{{ deck.audience }}</b></span>{% endif %}
+        </div>
+      </div>
+
+    {% elif layout == 'section' %}
+      <div>
+        <div class="chapter-num">Chapter {{ loop.index }}</div>
+        <h2>{{ slide.title }}</h2>
+      </div>
+
+    {% else %}
+
+      <header class="s-head">
+        <span class="deck-title">{{ deck.title }}</span>
+        {% if theme.logo %}<img class="logo" src="{{ theme.logo }}" alt="logo">{% endif %}
+      </header>
+
+      {% if layout == 'bullets' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% if slide.body %}<div class="s-body">{{ slide.body|md|safe }}</div>{% endif %}
+        {% if slide.bullets %}
+        <ul class="s-bullets">
+          {% for b in slide.bullets %}<li>{{ b }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+      {% elif layout == 'two-column' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        <div class="s-two-col">
+          <div class="s-col">
+            {% if slide.left and slide.left.title %}<h3>{{ slide.left.title }}</h3>{% endif %}
+            <ul>
+              {% for b in (slide.left.bullets if slide.left else []) %}<li>{{ b }}</li>{% endfor %}
+            </ul>
+          </div>
+          <div class="s-col">
+            {% if slide.right and slide.right.title %}<h3>{{ slide.right.title }}</h3>{% endif %}
+            <ul>
+              {% for b in (slide.right.bullets if slide.right else []) %}<li>{{ b }}</li>{% endfor %}
+            </ul>
+          </div>
+        </div>
+
+      {% elif layout == 'kpi' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% set n = (slide.kpis or [])|length %}
+        <div class="s-kpis cols-{{ 4 if n >= 4 else (3 if n == 3 else 2) }}">
+          {% for k in slide.kpis or [] %}
+          <div class="kpi">
+            <div class="label">{{ k.label }}</div>
+            <div class="value">{{ k.value }}</div>
+            {% if k.delta %}<div class="delta {{ k.trend or 'flat' }}">{{ k.delta }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif layout == 'quote' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        <div class="s-quote">
+          <blockquote>{{ slide.quote.text if slide.quote else slide.body }}</blockquote>
+          {% if slide.quote and slide.quote.author %}<div class="author">{{ slide.quote.author }}</div>{% endif %}
+        </div>
+
+      {% elif layout == 'table' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        <div class="s-table">
+          <table class="s-data">
+            <thead><tr>{% for h in (slide.table.headers if slide.table else []) %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for row in (slide.table.rows if slide.table else []) %}
+              <tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      {% elif layout == 'timeline' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        <div class="s-timeline">
+          {% for item in slide.timeline or [] %}
+          <div class="tl-row">
+            <div class="tl-when">{{ item.when }}</div>
+            <div><div class="tl-dot"></div></div>
+            <div class="tl-body"><div class="what">{{ item.what }}</div>{% if item.detail %}<div class="detail">{{ item.detail }}</div>{% endif %}</div>
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif layout == 'swot' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        <div class="s-swot">
+          <div class="swot-cell swot-s"><h4>Strengths</h4><ul>{% for x in slide.swot.strengths or [] %}<li>{{ x }}</li>{% endfor %}</ul></div>
+          <div class="swot-cell swot-w"><h4>Weaknesses</h4><ul>{% for x in slide.swot.weaknesses or [] %}<li>{{ x }}</li>{% endfor %}</ul></div>
+          <div class="swot-cell swot-o"><h4>Opportunities</h4><ul>{% for x in slide.swot.opportunities or [] %}<li>{{ x }}</li>{% endfor %}</ul></div>
+          <div class="swot-cell swot-t"><h4>Threats</h4><ul>{% for x in slide.swot.threats or [] %}<li>{{ x }}</li>{% endfor %}</ul></div>
+        </div>
+
+      {% elif layout == 'chart' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        <div class="s-chart">
+          <div class="chart-wrap">
+            {{ slide.chart | chart_svg | safe }}
+          </div>
+          {% if slide.chart and slide.chart.insight %}
+          <div class="chart-insight"><b>So what:</b> {{ slide.chart.insight }}</div>
+          {% endif %}
+        </div>
+
+      {% elif layout == 'closing' %}
+        <h2 class="s-title">{{ slide.title or 'Next steps' }}</h2>
+        <div class="closing-wrap">
+          {% if slide.body %}<div class="s-body">{{ slide.body|md|safe }}</div>{% endif %}
+          {% if slide.bullets %}
+          <ul class="s-bullets next-steps">
+            {% for b in slide.bullets %}<li>{{ b }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+
+      {% else %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.body %}<div class="s-body">{{ slide.body|md|safe }}</div>{% endif %}
+      {% endif %}
+
+      <footer class="s-foot">
+        <span class="footnote">{{ slide.footnote or theme.footer or '' }}</span>
+        <span class="page">{{ loop.index }} / {{ total }}</span>
+      </footer>
+
+    {% endif %}
+
+    {% if slide.notes %}<div class="s-notes"><b>Speaker notes:</b> {{ slide.notes }}</div>{% endif %}
+  </section>
+{% endfor %}
+
+<script>
+  // Optional speaker-notes toggle when viewed in browser: append ?notes=1
+  if (new URLSearchParams(location.search).get('notes') === '1') {
+    document.body.classList.add('show-notes');
+  }
+  // Render any inline charts (placeholder; SVG already inlined server-side)
+</script>
+</body>
+</html>
