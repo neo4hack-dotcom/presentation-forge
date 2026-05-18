@@ -49,6 +49,11 @@ DEFAULT_THEME = {
     "footer": "",            # footer text
     "template": "consulting",  # consulting | executive | dark-board
     "dark": False,
+    # ---- Visual identity system (the "wow" effects, consistent across the deck)
+    "cover_style": "minimal",       # minimal | bold | mesh | split | editorial | geometric
+    "divider_style": "gradient",    # gradient | minimal | numbered | photo
+    "accent_shape": "bar",          # bar | dot | line | triangle | none
+    "index_style": "list",          # list | grid | numbered
 }
 
 

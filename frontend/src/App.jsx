@@ -8,6 +8,8 @@ import OutlineEditor from './components/OutlineEditor.jsx'
 import ToolsPanel from './components/ToolsPanel.jsx'
 import Presenter from './components/Presenter.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
+import BrandKitsBar from './components/BrandKitsBar.jsx'
+import VisualIdentityPicker from './components/VisualIdentityPicker.jsx'
 
 const DEFAULT_THEME = {
   name: 'Aurora',
@@ -457,6 +459,8 @@ export default function App() {
             exporting={exporting}
             addToast={addToast}
           />
+          <VisualIdentityPicker theme={theme} setTheme={setTheme} />
+          <BrandKitsBar theme={theme} setTheme={setTheme} addToast={addToast} />
           <ToolsPanel
             deck={deck} setDeck={setDeck}
             fullContext={fullContext}

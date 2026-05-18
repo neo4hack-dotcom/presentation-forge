@@ -17,17 +17,24 @@ from . import llm
 
 
 SUPPORTED_LAYOUTS = [
-    "title",       # opening slide
-    "section",     # divider/section header
-    "bullets",     # title + bullet list
-    "two-column",  # left/right text panels
-    "kpi",         # 3-6 KPI tiles
-    "quote",       # large pull-quote
-    "table",       # structured table
-    "timeline",    # vertical timeline
-    "swot",        # 2x2 SWOT grid
-    "chart",       # bar / line / donut
-    "closing",     # closing slide / next steps
+    "title",        # opening slide
+    "index",        # table of contents
+    "section",      # divider / section header
+    "bullets",      # title + bullet list
+    "two-column",   # left/right text panels
+    "kpi",          # 3-6 KPI tiles
+    "big-number",   # one hero number
+    "quote",        # large pull-quote
+    "table",        # structured table
+    "timeline",     # vertical timeline
+    "swot",         # 2x2 SWOT grid
+    "matrix",       # generic 2x2 matrix (impact/effort, risk/reward, etc.)
+    "process",      # numbered horizontal steps (4-6)
+    "pyramid",      # 3-5 tier hierarchy pyramid
+    "comparison",   # side-by-side feature comparison cards
+    "icon-grid",    # 3-6 labeled tiles (capabilities, pillars)
+    "chart",        # bar / line / area / donut / pie / stacked / hbar / waterfall / funnel / gauge
+    "closing",      # closing slide / next steps
 ]
 
 
@@ -72,7 +79,13 @@ You receive: the full deck outline, the user context (prompt + reference documen
   "table": {"headers": ["..."], "rows": [["..."]]},                // for table
   "timeline": [{"when": "Q1 2026", "what": "Milestone", "detail": "1-line detail"}],  // for timeline
   "swot": {"strengths": ["..."], "weaknesses": ["..."], "opportunities": ["..."], "threats": ["..."]},
-  "chart": {"type": "bar|line|donut", "labels": ["..."], "series": [{"name": "...", "values": [1,2,3]}], "ylabel": "...", "insight": "1-line so-what"},
+  "matrix": {"x_label": "Effort", "y_label": "Impact", "q1": {"title":"Quick wins","items":["..."]}, "q2": {"title":"Major projects","items":["..."]}, "q3": {"title":"Fill-ins","items":["..."]}, "q4": {"title":"Reassess","items":["..."]}},
+  "process": {"steps": [{"title": "Discover", "detail": "1-line detail"}, {"title": "Design", "detail": "..."}, ...]},
+  "pyramid": {"tiers": [{"label": "Vision", "detail": "..."}, {"label": "Strategy", "detail": "..."}, {"label": "Tactics", "detail": "..."}]},
+  "comparison": {"items": [{"title": "Option A", "highlight": false, "points": ["...", "..."]}, {"title": "Option B", "highlight": true, "points": ["...", "..."]}]},
+  "icon_grid": {"tiles": [{"icon": "📈", "title": "Growth", "detail": "..."}, {"icon": "🛡️", "title": "Trust", "detail": "..."}]},
+  "big_number": {"value": "€12.4M", "label": "Q1 revenue", "trend": "up", "delta": "+18% YoY", "context": "Above the €11.5M plan, driven by EMEA enterprise."},
+  "chart": {"type": "bar|line|area|donut|pie|stacked-bar|horizontal-bar|waterfall|funnel|gauge", "labels": ["..."], "series": [{"name": "...", "values": [1,2,3]}], "ylabel": "...", "insight": "1-line so-what", "max": 100},
   "footnote": "Optional source citation (e.g. 'Source: Q3 board pack, p.12')",
   "notes": "Speaker notes: 3-5 sentences expanding what the presenter should say."
 }
@@ -81,8 +94,15 @@ RULES:
 - Use the user context *aggressively*. Pull real numbers, names, dates, and quotes from the provided documents. Cite the source in `footnote` when you do.
 - NO filler, NO platitudes, NO generic business-speak. Every word earns its place.
 - Bullets are tight sentences (<= 18 words), not labels. They make a claim.
-- For `chart`, invent numbers ONLY if explicit data is missing — and clearly mark them as illustrative in `insight`.
+- For `chart`, pick the type that best reveals the so-what: `bar` for compare, `line/area` for trends, `donut/pie` for shares, `stacked-bar` for composition over time, `horizontal-bar` for ranked lists, `waterfall` for financial bridges (use a NEGATIVE value for a decrease), `funnel` for conversion stages, `gauge` for a single % target (set `max` to the goal). Invent numbers ONLY if explicit data is missing — mark them as illustrative in `insight`.
 - For `kpi`, the `value` is the headline number; `delta` is the change vs prior period.
+- For `big-number` layout, use the `big_number` field — pick this layout when ONE figure tells the entire story.
+- For `process` use 4-6 sequential steps with verb-led titles.
+- For `pyramid`, order tiers from broad (top) to specific (bottom); 3-5 tiers.
+- For `comparison`, mark exactly ONE item with `"highlight": true` — the recommended option.
+- For `matrix`, q1 = high impact / low effort (quick wins), q2 = high impact / high effort (major projects), q3 = low impact / low effort (fill-ins), q4 = low impact / high effort (reassess).
+- For `index` layout, the template auto-populates from the deck's `section` slides — leave `bullets` empty unless there are no sections.
+- For `icon-grid`, pick a single relevant unicode emoji per tile.
 - Speaker `notes` ARE mandatory for every content slide — they're how the user will deliver this.
 - Reply with VALID JSON only. No code fence, no prose."""
 

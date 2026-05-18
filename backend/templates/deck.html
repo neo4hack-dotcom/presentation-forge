@@ -235,6 +235,246 @@
   }
   .chart-insight b { color: var(--primary); }
 
+  /* ============================================================
+     VISUAL IDENTITY — Cover variants, dividers, decorative elements
+     ============================================================ */
+
+  /* Cover: bold — full-bleed brand gradient + oversized typography */
+  .slide.layout-title.cover-bold {
+    background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--secondary) 80%, var(--primary)) 100%);
+    color: #fff;
+  }
+  .slide.layout-title.cover-bold .title-wrap::before { background: rgba(255,255,255,.9); }
+  .slide.layout-title.cover-bold h1 { font-size: 108px; color: #fff; }
+  .slide.layout-title.cover-bold .sub { color: rgba(255,255,255,.85); }
+  .slide.layout-title.cover-bold .meta { color: rgba(255,255,255,.7); }
+  .slide.layout-title.cover-bold .meta b { color: #fff; }
+
+  /* Cover: mesh — multi-gradient ambient backdrop */
+  .slide.layout-title.cover-mesh {
+    background:
+      radial-gradient(at 18% 22%, color-mix(in srgb, var(--primary) 55%, transparent) 0%, transparent 45%),
+      radial-gradient(at 82% 30%, color-mix(in srgb, var(--secondary) 55%, transparent) 0%, transparent 50%),
+      radial-gradient(at 70% 88%, color-mix(in srgb, var(--accent) 45%, transparent) 0%, transparent 50%),
+      radial-gradient(at 8% 92%, color-mix(in srgb, var(--primary) 35%, transparent) 0%, transparent 60%),
+      var(--bg);
+  }
+  .slide.layout-title.cover-mesh h1 { font-size: 100px; }
+
+  /* Cover: split — diagonal brand band */
+  .slide.layout-title.cover-split { padding: 0; position: relative; }
+  .slide.layout-title.cover-split::after {
+    content: ''; position: absolute; inset: 0;
+    background: var(--primary);
+    clip-path: polygon(0 0, 38% 0, 28% 100%, 0 100%);
+    z-index: 0;
+  }
+  .slide.layout-title.cover-split .title-wrap { position: relative; z-index: 1; padding-left: 540px; }
+  .slide.layout-title.cover-split .title-wrap::before { display: none; }
+  .slide.layout-title.cover-split h1 { font-size: 86px; }
+
+  /* Cover: editorial — serif title with refined leading */
+  .slide.layout-title.cover-editorial h1 {
+    font-family: 'Georgia', 'Times New Roman', serif; font-weight: 700; font-size: 96px;
+    letter-spacing: -.02em;
+  }
+  .slide.layout-title.cover-editorial .sub { font-style: italic; font-size: 26px; }
+
+  /* Cover: geometric — abstract circles in brand color */
+  .slide.layout-title.cover-geometric { position: relative; overflow: hidden; }
+  .slide.layout-title.cover-geometric::before,
+  .slide.layout-title.cover-geometric::after {
+    content: ''; position: absolute; border-radius: 50%; z-index: 0;
+  }
+  .slide.layout-title.cover-geometric::before {
+    width: 720px; height: 720px;
+    background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+    top: -260px; right: -220px; opacity: .35;
+  }
+  .slide.layout-title.cover-geometric::after {
+    width: 460px; height: 460px;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    bottom: -160px; left: -140px; opacity: .25;
+  }
+  .slide.layout-title.cover-geometric .title-wrap { position: relative; z-index: 1; }
+
+  /* Divider style: minimal — text on neutral bg with accent bar */
+  .slide.layout-section.div-minimal {
+    background: var(--bg); color: var(--text);
+    padding: 0 120px; justify-content: center;
+  }
+  .slide.layout-section.div-minimal::before {
+    content: ''; position: absolute; left: 120px; top: calc(50% - 130px);
+    width: 84px; height: 6px; background: var(--primary); border-radius: 3px;
+  }
+  .slide.layout-section.div-minimal .chapter-num { color: var(--primary); }
+  .slide.layout-section.div-minimal h2 { color: var(--text); }
+
+  /* Divider style: numbered — huge chapter number on the side */
+  .slide.layout-section.div-numbered {
+    background: var(--bg); color: var(--text);
+    padding: 0 120px; flex-direction: row; justify-content: flex-start; align-items: center; gap: 60px;
+  }
+  .slide.layout-section.div-numbered .big-num {
+    font-family: var(--heading-font); font-size: 280px; font-weight: 800;
+    line-height: 1; color: var(--primary); letter-spacing: -.05em; opacity: .92;
+  }
+  .slide.layout-section.div-numbered .chapter-meta { display: flex; flex-direction: column; gap: 12px; }
+  .slide.layout-section.div-numbered .chapter-num { color: var(--muted); font-size: 18px; }
+  .slide.layout-section.div-numbered h2 { color: var(--text); font-size: 72px; max-width: 880px; }
+
+  /* ============================================================
+     NEW LAYOUTS
+     ============================================================ */
+
+  /* Index / Table of contents */
+  .s-index { display: grid; gap: 16px; flex: 1; align-content: flex-start; margin-top: 8px; }
+  .s-index.cols-2 { grid-template-columns: 1fr 1fr; gap: 18px 60px; }
+  .s-index .idx-row {
+    display: grid; grid-template-columns: 56px 1fr auto; align-items: baseline; gap: 18px;
+    padding: 14px 0; border-bottom: 1px dashed color-mix(in srgb, var(--muted) 30%, transparent);
+  }
+  .s-index .idx-num {
+    font-family: var(--heading-font); font-size: 28px; font-weight: 800;
+    color: var(--primary); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .s-index .idx-title { font-size: 20px; font-weight: 600; color: var(--text); }
+  .s-index .idx-meta { font-size: 13px; color: var(--muted); }
+
+  /* Big number — hero KPI slide */
+  .s-big-number {
+    flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  }
+  .s-big-number .value {
+    font-family: var(--heading-font);
+    font-size: 220px; font-weight: 800; line-height: 1;
+    letter-spacing: -.045em; color: var(--text);
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    margin: 0;
+  }
+  .s-big-number .label { font-size: 28px; color: var(--muted); font-weight: 500; margin-top: 12px; letter-spacing: .02em; }
+  .s-big-number .delta { font-size: 22px; margin-top: 18px; font-weight: 700; }
+  .s-big-number .delta.up { color: #10B981; }
+  .s-big-number .delta.down { color: #EF4444; }
+  .s-big-number .delta.flat { color: var(--muted); }
+  .s-big-number .context { font-size: 18px; color: var(--text); max-width: 900px; margin-top: 28px; line-height: 1.5; }
+
+  /* Process — horizontal numbered steps */
+  .s-process { flex: 1; display: grid; gap: 14px; align-content: center; }
+  .s-process .steps { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 14px; align-items: stretch; }
+  .s-process .step {
+    background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--primary) 16%, transparent);
+    border-radius: 14px; padding: 24px 22px; position: relative;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .s-process .step .n {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--primary); color: white; font-weight: 800; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .s-process .step .t { font-size: 19px; font-weight: 700; color: var(--text); }
+  .s-process .step .d { font-size: 14px; color: var(--text); opacity: .82; line-height: 1.45; }
+  .s-process .step:not(:last-child)::after {
+    content: '→'; position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+    font-size: 24px; color: var(--primary); font-weight: 700; z-index: 2;
+  }
+
+  /* Pyramid — vertical 3-5 tier hierarchy */
+  .s-pyramid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 80px; }
+  .s-pyramid .tier {
+    color: white;
+    padding: 18px 24px;
+    border-radius: 10px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
+  }
+  .s-pyramid .tier .lbl { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .s-pyramid .tier .det { font-size: 14px; opacity: .92; max-width: 700px; }
+
+  /* Comparison — side-by-side cards */
+  .s-comparison { flex: 1; display: grid; gap: 22px; align-items: stretch; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .s-comparison .cmp-card {
+    background: var(--surface);
+    border: 1.5px solid color-mix(in srgb, var(--muted) 25%, transparent);
+    border-radius: 14px;
+    padding: 28px 26px;
+    display: flex; flex-direction: column; gap: 14px;
+    position: relative;
+  }
+  .s-comparison .cmp-card.highlight {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
+  }
+  .s-comparison .cmp-card.highlight::before {
+    content: 'RECOMMENDED'; position: absolute; top: -12px; right: 18px;
+    background: var(--primary); color: white;
+    font-size: 11px; font-weight: 800; letter-spacing: .12em;
+    padding: 4px 10px; border-radius: 6px;
+  }
+  .s-comparison .cmp-card h3 { margin: 0; font-size: 24px; color: var(--text); }
+  .s-comparison .cmp-card ul { margin: 0; padding-left: 0; list-style: none; }
+  .s-comparison .cmp-card ul li {
+    padding: 8px 0 8px 24px; font-size: 15px; line-height: 1.45;
+    border-bottom: 1px solid color-mix(in srgb, var(--muted) 18%, transparent); position: relative;
+  }
+  .s-comparison .cmp-card ul li::before {
+    content: '✓'; position: absolute; left: 0; top: 8px; color: var(--primary); font-weight: 800;
+  }
+  .s-comparison .cmp-card ul li:last-child { border-bottom: none; }
+
+  /* Icon grid */
+  .s-icon-grid { flex: 1; display: grid; gap: 22px; align-content: center; }
+  .s-icon-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .s-icon-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .s-icon-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .s-icon-grid .tile {
+    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--primary) 14%, transparent);
+    border-radius: 14px; padding: 26px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .s-icon-grid .tile .icon {
+    font-size: 38px; line-height: 1;
+    width: 60px; height: 60px; border-radius: 12px;
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .s-icon-grid .tile .t { font-size: 19px; font-weight: 700; color: var(--text); }
+  .s-icon-grid .tile .d { font-size: 14px; color: var(--text); opacity: .8; line-height: 1.45; }
+
+  /* Matrix — generic 2x2 */
+  .s-matrix { flex: 1; display: grid; gap: 12px; grid-template-columns: 60px 1fr 1fr; grid-template-rows: 1fr 1fr 50px; }
+  .s-matrix .y-axis {
+    grid-row: 1 / span 2; grid-column: 1;
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    text-align: center; font-size: 14px; color: var(--muted); font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .s-matrix .x-axis {
+    grid-row: 3; grid-column: 2 / span 2;
+    text-align: center; font-size: 14px; color: var(--muted); font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .s-matrix .quadrant {
+    border-radius: 12px; padding: 18px 22px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .s-matrix .quadrant h4 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: .1em; }
+  .s-matrix .quadrant ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.45; }
+  .s-matrix .q1 { background: color-mix(in srgb, #10B981 10%, var(--surface)); }   /* high impact, low effort */
+  .s-matrix .q1 h4 { color: #047857; }
+  .s-matrix .q2 { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+  .s-matrix .q2 h4 { color: var(--primary); }
+  .s-matrix .q3 { background: color-mix(in srgb, var(--muted) 10%, var(--surface)); }
+  .s-matrix .q3 h4 { color: var(--text); opacity: .7; }
+  .s-matrix .q4 { background: color-mix(in srgb, #EF4444 8%, var(--surface)); }
+  .s-matrix .q4 h4 { color: #B91C1C; }
+
   /* Print */
   @media print {
     html, body { background: #fff; }
@@ -256,7 +496,9 @@
 {% set total = deck.slides|length %}
 {% for slide in deck.slides %}
   {% set layout = slide.layout|default('bullets') %}
-  <section class="slide layout-{{ layout }} tpl-{{ theme.template }}{% if theme.dark %} dark{% endif %}" id="{{ slide.id }}">
+  {% set cover_cls = 'cover-' ~ (theme.cover_style or 'minimal') if layout == 'title' else '' %}
+  {% set div_cls = 'div-' ~ (theme.divider_style or 'gradient') if layout == 'section' else '' %}
+  <section class="slide layout-{{ layout }} {{ cover_cls }} {{ div_cls }} tpl-{{ theme.template }}{% if theme.dark %} dark{% endif %}" id="{{ slide.id }}">
 
     {% if layout == 'title' %}
       <div class="title-wrap">
@@ -273,10 +515,18 @@
       </div>
 
     {% elif layout == 'section' %}
-      <div>
-        <div class="chapter-num">Chapter {{ loop.index }}</div>
-        <h2>{{ slide.title }}</h2>
-      </div>
+      {% if theme.divider_style == 'numbered' %}
+        <div class="big-num">{{ '%02d' % loop.index }}</div>
+        <div class="chapter-meta">
+          <div class="chapter-num">Chapter {{ loop.index }}</div>
+          <h2>{{ slide.title }}</h2>
+        </div>
+      {% else %}
+        <div>
+          <div class="chapter-num">Chapter {{ loop.index }}</div>
+          <h2>{{ slide.title }}</h2>
+        </div>
+      {% endif %}
 
     {% else %}
 
@@ -359,6 +609,126 @@
             <div class="tl-body"><div class="what">{{ item.what }}</div>{% if item.detail %}<div class="detail">{{ item.detail }}</div>{% endif %}</div>
           </div>
           {% endfor %}
+        </div>
+
+      {% elif layout == 'index' %}
+        <h2 class="s-title">{{ slide.title or 'Contents' }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% set sections = [] %}
+        {% for s in deck.slides %}{% if s.layout == 'section' %}{% set _ = sections.append({'title': s.title, 'page': loop.index}) %}{% endif %}{% endfor %}
+        <div class="s-index {% if sections|length > 4 %}cols-2{% endif %}">
+          {% for sec in sections %}
+          <div class="idx-row">
+            <span class="idx-num">{{ '%02d' % loop.index }}</span>
+            <span class="idx-title">{{ sec.title }}</span>
+            <span class="idx-meta">p. {{ sec.page }}</span>
+          </div>
+          {% endfor %}
+          {% if sections|length == 0 %}
+          {% for b in slide.bullets or [] %}
+          <div class="idx-row">
+            <span class="idx-num">{{ '%02d' % loop.index }}</span>
+            <span class="idx-title">{{ b }}</span>
+            <span class="idx-meta"></span>
+          </div>
+          {% endfor %}
+          {% endif %}
+        </div>
+
+      {% elif layout == 'big-number' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% set bn = slide.big_number or {'value': slide.subtitle or '—', 'label': slide.title} %}
+        <div class="s-big-number">
+          <div class="value">{{ bn.value }}</div>
+          <div class="label">{{ bn.label or '' }}</div>
+          {% if bn.delta %}<div class="delta {{ bn.trend or 'flat' }}">{{ bn.delta }}</div>{% endif %}
+          {% if bn.context %}<div class="context">{{ bn.context }}</div>{% endif %}
+        </div>
+
+      {% elif layout == 'process' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        <div class="s-process">
+          <div class="steps">
+            {% for s in (slide.process.steps if slide.process else []) %}
+            <div class="step">
+              <div class="n">{{ loop.index }}</div>
+              <div class="t">{{ s.title }}</div>
+              {% if s.detail %}<div class="d">{{ s.detail }}</div>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      {% elif layout == 'pyramid' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% set tiers = (slide.pyramid.tiers if slide.pyramid else []) %}
+        {% set palette = ['var(--primary)', 'color-mix(in srgb, var(--primary) 80%, var(--secondary))', 'color-mix(in srgb, var(--primary) 60%, var(--secondary))', 'color-mix(in srgb, var(--secondary) 80%, var(--primary))', 'var(--secondary)'] %}
+        <div class="s-pyramid">
+          {% for tier in tiers %}
+          {% set i = loop.index0 %}
+          {% set w_pct = 30 + (50 * i / ((tiers|length - 1) if tiers|length > 1 else 1)) %}
+          <div class="tier" style="width: {{ w_pct + 20 }}%; background: {{ palette[i % palette|length] }};">
+            <div class="lbl">{{ tier.label }}</div>
+            {% if tier.detail %}<div class="det">{{ tier.detail }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif layout == 'comparison' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        <div class="s-comparison">
+          {% for item in (slide.comparison['items'] if slide.comparison else []) %}
+          <div class="cmp-card{% if item.highlight %} highlight{% endif %}">
+            <h3>{{ item.title }}</h3>
+            <ul>
+              {% for p in item.points or [] %}<li>{{ p }}</li>{% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif layout == 'icon-grid' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% set tiles = (slide.icon_grid.tiles if slide.icon_grid else []) %}
+        {% set n = tiles|length %}
+        <div class="s-icon-grid cols-{{ 4 if n >= 4 else (3 if n == 3 else 2) }}">
+          {% for tile in tiles %}
+          <div class="tile">
+            <div class="icon">{{ tile.icon or '◆' }}</div>
+            <div class="t">{{ tile.title }}</div>
+            {% if tile.detail %}<div class="d">{{ tile.detail }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif layout == 'matrix' %}
+        <h2 class="s-title">{{ slide.title }}</h2>
+        {% if slide.subtitle %}<div class="s-subtitle">{{ slide.subtitle }}</div>{% endif %}
+        {% set m = slide.matrix or {} %}
+        <div class="s-matrix">
+          <div class="y-axis">↑ {{ m.y_label or 'Impact' }}</div>
+          <div class="quadrant q2">
+            <h4>{{ (m.q2 and m.q2.title) or 'Major projects' }}</h4>
+            <ul>{% for x in (m.q2['items'] if m.q2 else []) %}<li>{{ x }}</li>{% endfor %}</ul>
+          </div>
+          <div class="quadrant q1">
+            <h4>{{ (m.q1 and m.q1.title) or 'Quick wins' }}</h4>
+            <ul>{% for x in (m.q1['items'] if m.q1 else []) %}<li>{{ x }}</li>{% endfor %}</ul>
+          </div>
+          <div class="quadrant q3">
+            <h4>{{ (m.q3 and m.q3.title) or 'Reassess' }}</h4>
+            <ul>{% for x in (m.q3['items'] if m.q3 else []) %}<li>{{ x }}</li>{% endfor %}</ul>
+          </div>
+          <div class="quadrant q4">
+            <h4>{{ (m.q4 and m.q4.title) or 'Fill-ins' }}</h4>
+            <ul>{% for x in (m.q4['items'] if m.q4 else []) %}<li>{{ x }}</li>{% endfor %}</ul>
+          </div>
+          <div class="x-axis">{{ m.x_label or 'Effort' }} →</div>
         </div>
 
       {% elif layout == 'swot' %}
