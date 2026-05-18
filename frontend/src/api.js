@@ -39,6 +39,38 @@ export async function modelsForConfig(patch) {
   return r.json();
 }
 
+// ---------- Brand kits ----------
+export async function listBrands() {
+  const r = await fetch('/api/brands'); return r.json();
+}
+export async function saveBrand(name, theme, id) {
+  const r = await fetch('/api/brands', { method: 'POST', headers: J, body: JSON.stringify({ id, name, theme }) });
+  if (!r.ok) throw new Error('Save brand failed');
+  return r.json();
+}
+export async function getBrand(id) {
+  const r = await fetch('/api/brands/' + id);
+  if (!r.ok) throw new Error('Brand not found');
+  return r.json();
+}
+export async function deleteBrand(id) {
+  await fetch('/api/brands/' + id, { method: 'DELETE' });
+}
+
+// ---------- Critic apply ----------
+export async function criticInsertSlide(outline, after_slide_id, proposed, context, model) {
+  const r = await fetch('/api/critic/insert-slide', { method: 'POST', headers: J,
+    body: JSON.stringify({ outline, after_slide_id, proposed, context, model }) });
+  if (!r.ok) throw new Error((await r.text()) || 'Insert failed');
+  return r.json();
+}
+export async function criticFixSlide(slide, issue, context, model) {
+  const r = await fetch('/api/critic/fix-slide', { method: 'POST', headers: J,
+    body: JSON.stringify({ slide, issue, context, model }) });
+  if (!r.ok) throw new Error((await r.text()) || 'Fix failed');
+  return r.json();
+}
+
 export async function parseFile(file) {
   const fd = new FormData();
   fd.append('file', file);

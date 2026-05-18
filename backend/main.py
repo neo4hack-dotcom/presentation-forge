@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import generator, llm, parsers, renderer, enhancements, config as cfg
+from . import generator, llm, parsers, renderer, enhancements, brand_kits, config as cfg
 from .style_extractor import extract_palette
 
 
@@ -32,7 +32,8 @@ STORAGE = BASE_DIR / "storage"
 UPLOADS = STORAGE / "uploads"
 OUTPUTS = STORAGE / "outputs"
 PROJECTS = STORAGE / "projects"
-for p in (UPLOADS, OUTPUTS, PROJECTS):
+BRANDS = STORAGE / "brands"
+for p in (UPLOADS, OUTPUTS, PROJECTS, BRANDS):
     p.mkdir(parents=True, exist_ok=True)
 
 
@@ -492,3 +493,93 @@ PRESETS = {
 @app.get("/api/themes")
 async def themes():
     return {"presets": PRESETS, "default": renderer.DEFAULT_THEME}
+
+
+# ---------- Brand kits ----------
+
+class BrandSave(BaseModel):
+    id: Optional[str] = None
+    name: str
+    theme: dict
+
+
+@app.get("/api/brands")
+async def brands_list():
+    return {"brands": brand_kits.list_brands(BRANDS)}
+
+
+@app.get("/api/brands/{bid}")
+async def brand_get(bid: str):
+    b = brand_kits.get_brand(BRANDS, bid)
+    if not b:
+        raise HTTPException(404, "not found")
+    return b
+
+
+@app.post("/api/brands")
+async def brand_save(p: BrandSave):
+    brand = brand_kits.theme_to_brand(p.theme or {})
+    brand["name"] = p.name
+    if p.id:
+        brand["id"] = p.id
+    saved = brand_kits.save_brand(BRANDS, brand)
+    return saved
+
+
+@app.delete("/api/brands/{bid}")
+async def brand_delete(bid: str):
+    brand_kits.delete_brand(BRANDS, bid)
+    return {"ok": True}
+
+
+# ---------- Critic-apply: insert a proposed missing slide ----------
+
+class InsertSlideRequest(BaseModel):
+    outline: dict          # full current deck (used as context + slide ids)
+    after_slide_id: Optional[str] = None  # if None, append
+    proposed: dict         # { layout, title, why? } from the critic
+    context: str = ""
+    model: Optional[str] = None
+
+
+@app.post("/api/critic/insert-slide")
+async def critic_insert_slide(req: InsertSlideRequest):
+    """Build a full slide from a critic-proposed entry and return it.
+
+    The frontend is responsible for splicing it into the deck at the right
+    position (it has the slide-id sequence already).
+    """
+    try:
+        # Give the slide a unique id deterministically based on time
+        entry = {
+            "id": "ins_" + uuid.uuid4().hex[:8],
+            "layout": req.proposed.get("layout", "bullets"),
+            "title": req.proposed.get("title", "New slide"),
+            "intent": req.proposed.get("why", req.proposed.get("intent", "")),
+        }
+        slide = await generator.build_slide(req.outline, entry, req.context, req.model)
+        return {"slide": slide, "after_slide_id": req.after_slide_id}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ---------- Critic-apply: refine a slide using a critic suggestion ----------
+
+class CriticFixRequest(BaseModel):
+    slide: dict
+    issue: dict              # { category, issue, suggestion }
+    context: str = ""
+    model: Optional[str] = None
+
+
+@app.post("/api/critic/fix-slide")
+async def critic_fix_slide(req: CriticFixRequest):
+    suggestion = req.issue.get("suggestion") or req.issue.get("issue") or ""
+    if not suggestion.strip():
+        raise HTTPException(400, "Empty suggestion")
+    instr = f"Apply this reviewer fix exactly: {suggestion}\n(Reviewer category: {req.issue.get('category', 'general')})"
+    try:
+        revised = await generator.refine_slide(req.slide, instr, req.context, req.model)
+        return {"slide": revised}
+    except Exception as e:
+        raise HTTPException(500, str(e))
