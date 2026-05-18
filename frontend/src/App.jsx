@@ -10,6 +10,7 @@ import Presenter from './components/Presenter.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
 import BrandKitsBar from './components/BrandKitsBar.jsx'
 import VisualIdentityPicker from './components/VisualIdentityPicker.jsx'
+import UserGuide from './components/UserGuide.jsx'
 
 const DEFAULT_THEME = {
   name: 'Aurora',
@@ -92,6 +93,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
   const [providerLabel, setProviderLabel] = useState('Ollama')
 
   const addToast = (t) => setToast(t)
@@ -357,6 +359,7 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !generating) { e.preventDefault(); onGenerate() }
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') { e.preventDefault(); onExportPdf() }
       if (e.key === 'F5' && deck) { e.preventDefault(); setPresenting(true) }
+      if (e.key === '?' && !e.target.closest('input, textarea, select')) { e.preventDefault(); setShowGuide(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -376,6 +379,7 @@ export default function App() {
           <span className={'pill ' + (models.length ? 'ok' : 'bad')} title={models.length ? `${models.length} models via ${providerLabel}` : 'No models — open Settings'}>
             ● {providerLabel} · {models.length ? `${models.length}` : 'offline'}
           </span>
+          <button className="btn subtle" onClick={() => setShowGuide(true)} title="User guide (?)">❔</button>
           <button className="btn subtle" onClick={() => setShowSettings(true)} title="LLM Settings">⚙️</button>
           <button className="btn subtle" onClick={() => setShowProjects(true)}>📁 Projects</button>
           <button className="btn" onClick={saveProject} title="Cmd/Ctrl+S">💾 Save</button>
@@ -484,6 +488,8 @@ export default function App() {
         addToast={addToast}
         onSaved={() => refreshHealth()}
       />
+
+      <UserGuide open={showGuide} onClose={() => setShowGuide(false)} />
 
 
       {showProjects && (
