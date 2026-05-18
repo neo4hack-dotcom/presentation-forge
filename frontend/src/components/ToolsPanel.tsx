@@ -1,14 +1,25 @@
-import React, { useState } from 'react'
-import * as api from '../api.js'
+import { useState } from 'react'
+import * as api from '../api'
+import type { Deck, CriticReview, CriticIssue, CriticMissingSlide, FactCheckResult, Toast } from '../types'
 
 const LANGS = ['French', 'English', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Japanese', 'Chinese (Simplified)', 'Arabic']
 
-export default function ToolsPanel({ deck, setDeck, fullContext, model, sourcesText, addToast, onPresentMode }) {
-  const [review, setReview] = useState(null)
-  const [busy, setBusy] = useState(null)
-  const [applying, setApplying] = useState(null) // index of issue/missing being applied
+interface Props {
+  deck: Deck | null
+  setDeck: React.Dispatch<React.SetStateAction<Deck | null>>
+  fullContext: string
+  sourcesText: string
+  model: string
+  addToast: (t: Toast) => void
+  onPresentMode: () => void
+}
+
+export default function ToolsPanel({ deck, setDeck, fullContext, model, sourcesText, addToast, onPresentMode }: Props) {
+  const [review, setReview] = useState<CriticReview | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [applying, setApplying] = useState<string | null>(null)
   const [lang, setLang] = useState('French')
-  const [fact, setFact] = useState(null)
+  const [fact, setFact] = useState<FactCheckResult | null>(null)
 
   const runCritic = async () => {
     if (!deck) return
@@ -43,33 +54,28 @@ export default function ToolsPanel({ deck, setDeck, fullContext, model, sourcesT
     finally { setBusy(null) }
   }
 
-  // Apply a critic-flagged issue to a specific slide (via refine)
-  const applyIssueFix = async (issue, idx) => {
-    if (!issue.slide_id) {
-      addToast({ type: 'error', message: 'This is a deck-wide issue, cannot auto-fix one slide.' }); return
-    }
+  const applyIssueFix = async (issue: CriticIssue, idx: number) => {
+    if (!issue.slide_id || !deck) { addToast({ type: 'error', message: 'This is a deck-wide issue.' }); return }
     const slide = deck.slides.find((s) => s.id === issue.slide_id)
     if (!slide) { addToast({ type: 'error', message: 'Slide not found' }); return }
     setApplying('issue-' + idx)
     try {
       const r = await api.criticFixSlide(slide, issue, fullContext, model)
-      setDeck((d) => ({ ...d, slides: d.slides.map((s) => s.id === issue.slide_id ? r.slide : s) }))
+      setDeck((d) => d ? { ...d, slides: d.slides.map((s) => s.id === issue.slide_id ? r.slide : s) } : d)
       addToast({ type: 'success', message: 'Slide updated to address the reviewer’s point.' })
-      // Mark as resolved in the local review state
       setReview((rv) => rv ? { ...rv, issues: rv.issues.map((it, i) => i === idx ? { ...it, _resolved: true } : it) } : rv)
     } catch (e) { addToast({ type: 'error', message: String(e) }) }
     finally { setApplying(null) }
   }
 
-  // Insert a critic-suggested missing slide
-  const insertMissing = async (missing, idx) => {
+  const insertMissing = async (missing: CriticMissingSlide, idx: number) => {
     if (!deck) return
     setApplying('miss-' + idx)
     try {
-      const outline = { ...deck, slides: deck.slides.map((s) => ({ id: s.id, layout: s.layout, title: s.title })) }
+      const outline: Deck = { ...deck, slides: deck.slides.map((s) => ({ id: s.id, layout: s.layout, title: s.title })) }
       const r = await api.criticInsertSlide(outline, missing.after_slide_id || null, missing, fullContext, model)
-      // Splice the new slide AFTER the specified id (or append)
       setDeck((d) => {
+        if (!d) return d
         const slides = [...d.slides]
         const newSlide = r.slide
         if (!missing.after_slide_id) {
@@ -92,10 +98,10 @@ export default function ToolsPanel({ deck, setDeck, fullContext, model, sourcesT
       <h3 style={{ margin: 0, padding: 0 }}>AI tools</h3>
 
       <div className="btn-group" style={{ marginTop: 10 }}>
-        <button className="btn" onClick={runCritic} disabled={!deck || busy}>
+        <button className="btn" onClick={runCritic} disabled={!deck || !!busy}>
           {busy === 'critic' ? <><span className="spinner"></span> Reviewing…</> : '🧐 AI critic'}
         </button>
-        <button className="btn" onClick={runFactCheck} disabled={!deck || busy}>
+        <button className="btn" onClick={runFactCheck} disabled={!deck || !!busy}>
           {busy === 'fact' ? <><span className="spinner"></span> Checking…</> : '🔎 Fact-check'}
         </button>
         <button className="btn" onClick={onPresentMode} disabled={!deck}>▶ Present</button>
@@ -105,7 +111,7 @@ export default function ToolsPanel({ deck, setDeck, fullContext, model, sourcesT
         <select className="text" style={{ flex: 1 }} value={lang} onChange={(e) => setLang(e.target.value)}>
           {LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
-        <button className="btn" onClick={runTranslate} disabled={!deck || busy}>
+        <button className="btn" onClick={runTranslate} disabled={!deck || !!busy}>
           {busy === 'translate' ? <><span className="spinner"></span></> : '🌍 Translate'}
         </button>
       </div>

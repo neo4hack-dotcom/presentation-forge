@@ -1,33 +1,38 @@
-import React, { useEffect, useState } from 'react'
-import * as api from '../api.js'
+import { useEffect, useState } from 'react'
+import * as api from '../api'
+import type { LLMConfigPatch, ProviderId, Toast } from '../types'
 
 const PROVIDERS = [
-  {
-    id: 'ollama',
-    label: 'Ollama',
-    hint: 'Native Ollama API · /api/tags · /api/chat',
-    defaultUrl: 'http://localhost:11434',
-    needsKey: false,
-  },
-  {
-    id: 'openai',
-    label: 'OpenAI-compatible HTTP',
-    hint: 'LM Studio · vLLM · llama.cpp server · LocalAI · any /v1/chat/completions endpoint',
-    defaultUrl: 'http://localhost:1234',
-    needsKey: true,
-  },
+  { id: 'ollama' as const, label: 'Ollama', hint: 'Native Ollama API · /api/tags · /api/chat', defaultUrl: 'http://localhost:11434', needsKey: false },
+  { id: 'openai' as const, label: 'OpenAI-compatible HTTP', hint: 'LM Studio · vLLM · llama.cpp server · LocalAI · any /v1/chat/completions endpoint', defaultUrl: 'http://localhost:1234', needsKey: true },
 ]
 
-export default function SettingsModal({ open, onClose, onSaved, addToast }) {
-  const [cfg, setCfg] = useState({
+interface Props {
+  open: boolean
+  onClose: () => void
+  onSaved?: (saved: unknown) => void
+  addToast?: (t: Toast) => void
+}
+
+interface UIState {
+  provider: ProviderId
+  base_url: string
+  api_key: string
+  default_model: string
+  outline_model: string
+  timeout: number
+}
+
+export default function SettingsModal({ open, onClose, onSaved, addToast }: Props) {
+  const [cfg, setCfg] = useState<UIState>({
     provider: 'ollama', base_url: 'http://localhost:11434', api_key: '',
     default_model: '', outline_model: '', timeout: 600,
   })
-  const [keyChanged, setKeyChanged] = useState(false) // only send api_key if user touched it
+  const [keyChanged, setKeyChanged] = useState(false)
   const [keyAlreadySet, setKeyAlreadySet] = useState(false)
-  const [models, setModels] = useState([])
+  const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
-  const [test, setTest] = useState({ status: 'idle', message: '' })
+  const [test, setTest] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -35,10 +40,11 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
     (async () => {
       try {
         const c = await api.getConfig()
+        const fallback = PROVIDERS.find((x) => x.id === (c.provider || 'ollama'))?.defaultUrl || 'http://localhost:11434'
         setCfg((p) => ({
           ...p,
           provider: c.provider || 'ollama',
-          base_url: c.base_url || PROVIDERS.find((x) => x.id === (c.provider || 'ollama')).defaultUrl,
+          base_url: c.base_url || fallback,
           default_model: c.default_model || '',
           outline_model: c.outline_model || '',
           timeout: c.timeout || 600,
@@ -47,43 +53,40 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
         setKeyChanged(false)
         setKeyAlreadySet(!!c.api_key_set)
         setTest({ status: 'idle', message: '' })
-        // Initial model fetch
-        try { await refreshModels(c) } catch {}
+        try { await refreshModels() } catch {}
       } catch (e) {
-        addToast?.({ type: 'error', message: 'Could not load current config: ' + e.message })
+        addToast?.({ type: 'error', message: 'Could not load current config: ' + (e as Error).message })
       }
     })()
   }, [open])
 
-  const refreshModels = async (override) => {
-    setLoadingModels(true)
-    try {
-      const candidate = override || patchToSend()
-      const r = await api.modelsForConfig(candidate)
-      const list = (r.models || []).map((m) => m.name || m).filter(Boolean)
-      setModels(list)
-      // Auto-select if current default is empty or missing
-      setCfg((p) => {
-        if (list.length && (!p.default_model || !list.includes(p.default_model))) {
-          return { ...p, default_model: list[0] }
-        }
-        return p
-      })
-    } catch (e) {
-      setModels([])
-    } finally {
-      setLoadingModels(false)
-    }
-  }
-
-  const patchToSend = () => {
-    const p = {
+  const patchToSend = (): LLMConfigPatch => {
+    const p: LLMConfigPatch = {
       provider: cfg.provider, base_url: cfg.base_url,
       default_model: cfg.default_model, outline_model: cfg.outline_model,
       timeout: cfg.timeout,
     }
     if (keyChanged) p.api_key = cfg.api_key
     return p
+  }
+
+  const refreshModels = async () => {
+    setLoadingModels(true)
+    try {
+      const r = await api.modelsForConfig(patchToSend())
+      const list = (r.models || []).map((m) => m.name).filter(Boolean)
+      setModels(list)
+      setCfg((p) => {
+        if (list.length && (!p.default_model || !list.includes(p.default_model))) {
+          return { ...p, default_model: list[0] }
+        }
+        return p
+      })
+    } catch {
+      setModels([])
+    } finally {
+      setLoadingModels(false)
+    }
   }
 
   const runTest = async () => {
@@ -96,7 +99,7 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
         setTest({ status: 'error', message: r.error || 'Unknown error' })
       }
     } catch (e) {
-      setTest({ status: 'error', message: e.message })
+      setTest({ status: 'error', message: (e as Error).message })
     }
     setTimeout(() => setTest((t) => t.status !== 'testing' ? { ...t, status: 'idle' } : t), 6000)
   }
@@ -109,20 +112,15 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
       onSaved?.(saved)
       onClose()
     } catch (e) {
-      addToast?.({ type: 'error', message: e.message })
+      addToast?.({ type: 'error', message: (e as Error).message })
     } finally {
       setSaving(false)
     }
   }
 
-  const switchProvider = (id) => {
+  const switchProvider = (id: ProviderId) => {
     const p = PROVIDERS.find((x) => x.id === id)
-    setCfg((c) => ({
-      ...c, provider: id,
-      base_url: p ? p.defaultUrl : c.base_url,
-      default_model: '',
-      api_key: '',
-    }))
+    setCfg((c) => ({ ...c, provider: id, base_url: p ? p.defaultUrl : c.base_url, default_model: '', api_key: '' }))
     setKeyChanged(false); setKeyAlreadySet(false); setModels([])
     setTest({ status: 'idle', message: '' })
   }
@@ -161,7 +159,7 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
           <input className="text" style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 13 }}
             value={cfg.base_url} placeholder={provider.defaultUrl}
             onChange={(e) => setCfg((c) => ({ ...c, base_url: e.target.value.replace(/\/+$/, '') }))} />
-          <button className="btn subtle" onClick={() => refreshModels()} disabled={loadingModels}>
+          <button className="btn subtle" onClick={refreshModels} disabled={loadingModels}>
             {loadingModels ? <span className="spinner"></span> : '↻'} Models
           </button>
         </div>
@@ -174,7 +172,7 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
         {provider.needsKey && (
           <>
             <label className="field">
-              API Key <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional · stored locally in {`config.json`})</span>
+              API Key <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional · stored locally in config.json)</span>
             </label>
             <input className="text" type="password" style={{ fontFamily: 'var(--mono)' }}
               placeholder={keyAlreadySet ? '•••••••• (already set — leave blank to keep)' : 'sk-… or leave blank if not required'}
@@ -193,7 +191,7 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
               </select>
             ) : (
               <input className="text" placeholder="e.g. gpt-oss:120b-cloud, llama3.1, qwen2.5-coder"
-                value={cfg.default_model || ''} onChange={(e) => setCfg((c) => ({ ...c, default_model: e.target.value }))} />
+                value={cfg.default_model} onChange={(e) => setCfg((c) => ({ ...c, default_model: e.target.value }))} />
             )}
           </div>
           <div>
@@ -205,7 +203,7 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
               </select>
             ) : (
               <input className="text" placeholder="(blank → uses default)"
-                value={cfg.outline_model || ''} onChange={(e) => setCfg((c) => ({ ...c, outline_model: e.target.value }))} />
+                value={cfg.outline_model} onChange={(e) => setCfg((c) => ({ ...c, outline_model: e.target.value }))} />
             )}
           </div>
         </div>
@@ -221,9 +219,7 @@ export default function SettingsModal({ open, onClose, onSaved, addToast }) {
             {test.status === 'error' && <span style={{ color: '#FCA5A5' }}>✗ {test.message}</span>}
           </div>
           <div className="btn-group">
-            <button className="btn subtle" onClick={runTest} disabled={test.status === 'testing'}>
-              Test connection
-            </button>
+            <button className="btn subtle" onClick={runTest} disabled={test.status === 'testing'}>Test connection</button>
             <button className="btn" onClick={onClose}>Cancel</button>
             <button className="btn primary" onClick={save} disabled={saving}>
               {saving ? <><span className="spinner"></span> Saving…</> : '💾 Save'}

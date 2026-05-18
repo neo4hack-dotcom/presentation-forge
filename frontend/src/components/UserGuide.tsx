@@ -1,8 +1,24 @@
-import React, { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
+
+type TagTone = 'indigo' | 'emerald' | 'amber' | 'rose' | 'slate'
+type TipTone = 'amber' | 'indigo' | 'rose'
+
+interface Section {
+  id: string
+  title: string
+  icon: string
+  summary: string
+  body: ReactNode
+}
+
+interface UserGuideProps {
+  open: boolean
+  onClose: () => void
+}
 
 // Small reusable primitives ----------------------------------------------
-const Tag = ({ children, tone = 'slate' }) => {
-  const tones = {
+const Tag = ({ children, tone = 'slate' }: { children: ReactNode; tone?: TagTone }) => {
+  const tones: Record<TagTone, { bg: string; fg: string; bd: string }> = {
     indigo: { bg: 'rgba(124,92,255,.18)', fg: '#C7B8FF', bd: 'rgba(124,92,255,.45)' },
     emerald: { bg: 'rgba(16,185,129,.15)', fg: '#6EE7B7', bd: 'rgba(16,185,129,.45)' },
     amber: { bg: 'rgba(245,158,11,.15)', fg: '#FCD34D', bd: 'rgba(245,158,11,.45)' },
@@ -13,7 +29,7 @@ const Tag = ({ children, tone = 'slate' }) => {
   return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '1px 8px', borderRadius: 999, border: `1px solid ${t.bd}`, background: t.bg, color: t.fg, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em' }}>{children}</span>
 }
 
-const Step = ({ n, title, children }) => (
+const Step = ({ n, title, children }: { n: number; title: string; children: ReactNode }) => (
   <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
     <div style={{ flex: '0 0 28px', height: 28, borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>{n}</div>
     <div style={{ flex: 1 }}>
@@ -23,17 +39,21 @@ const Step = ({ n, title, children }) => (
   </div>
 )
 
-const Tip = ({ children, tone = 'amber' }) => {
-  const colors = { amber: ['rgba(245,158,11,.10)', '#F59E0B', '#FCD34D'], indigo: ['rgba(124,92,255,.10)', 'var(--accent)', '#C7B8FF'], rose: ['rgba(239,68,68,.08)', '#EF4444', '#FCA5A5'] }
+const Tip = ({ children, tone = 'amber' }: { children: ReactNode; tone?: TipTone }) => {
+  const colors: Record<TipTone, [string, string, string]> = {
+    amber: ['rgba(245,158,11,.10)', '#F59E0B', '#FCD34D'],
+    indigo: ['rgba(124,92,255,.10)', 'var(--accent)', '#C7B8FF'],
+    rose: ['rgba(239,68,68,.08)', '#EF4444', '#FCA5A5'],
+  }
   const [bg, bd, fg] = colors[tone] || colors.amber
   return <div style={{ display: 'flex', gap: 8, padding: 12, background: bg, borderLeft: `3px solid ${bd}`, borderRadius: '0 6px 6px 0', color: fg, fontSize: 13, lineHeight: 1.5, margin: '12px 0' }}>
     <span style={{ flex: '0 0 auto' }}>💡</span><div>{children}</div>
   </div>
 }
 
-const KBD = ({ children }) => <span className="kbd">{children}</span>
+const KBD = ({ children }: { children: ReactNode }) => <span className="kbd">{children}</span>
 
-const Feat = ({ icon, name, children }) => (
+const Feat = ({ icon, name, children }: { icon: ReactNode; name: ReactNode; children: ReactNode }) => (
   <div style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
     <div style={{ fontSize: 18, flex: '0 0 28px', textAlign: 'center' }}>{icon}</div>
     <div style={{ flex: 1 }}>
@@ -44,7 +64,7 @@ const Feat = ({ icon, name, children }) => (
 )
 
 // Section content --------------------------------------------------------
-const SECTIONS = [
+const SECTIONS: Section[] = [
   {
     id: 'getting-started',
     title: 'Getting started',
@@ -391,7 +411,7 @@ const SECTIONS = [
               ['⌘/Ctrl + Enter (in refine box)', 'Apply the custom refine instruction'],
             ].map(([k, d]) => (
               <tr key={k} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{k.split('  /  ').map((part, i) => <React.Fragment key={i}>{i > 0 && <span style={{ color: 'var(--muted)' }}>or </span>}<KBD>{part.trim()}</KBD>{' '}</React.Fragment>)}</td>
+                <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{k.split('  /  ').map((part, i) => <Fragment key={i}>{i > 0 && <span style={{ color: 'var(--muted)' }}>or </span>}<KBD>{part.trim()}</KBD>{' '}</Fragment>)}</td>
                 <td style={{ padding: '8px 10px', color: 'var(--text-2)' }}>{d}</td>
               </tr>
             ))}
@@ -479,7 +499,7 @@ const SECTIONS = [
 
 
 // Component --------------------------------------------------------------
-export default function UserGuide({ open, onClose }) {
+export default function UserGuide({ open, onClose }: UserGuideProps) {
   const [activeId, setActiveId] = useState('getting-started')
   const [search, setSearch] = useState('')
 
