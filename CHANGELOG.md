@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0] — 2026-05-18
+
+### Added — In-app user guide
+- New `UserGuide` modal accessible via the **❔** button in the topbar (or <kbd>?</kbd>)
+- 17 sections covering: Getting started · Workspace map · Writing a brief · Generation pipeline · Slide layouts (18) · Charts (10) · Theme · Visual identity · Brand kits · AI tools · Presenter mode · Projects & versioning · LLM settings · Export · Keyboard shortcuts · FAQ · Privacy · Glossary
+- Searchable sidebar, prev/next pagination, Steps/Tips/KBD/Tag primitives — pattern lifted from DOINg's UserGuide
+
 ## [1.1.0] — 2026-05-18
 
 ### Added — Apply AI critic suggestions
