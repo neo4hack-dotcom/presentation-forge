@@ -1,12 +1,19 @@
-import React, { useEffect, useState } from 'react'
-import * as api from '../api.js'
+import { useEffect, useState } from 'react'
+import * as api from '../api'
+import type { Theme, BrandKitSummary, Toast } from '../types'
 
-export default function BrandKitsBar({ theme, setTheme, addToast }) {
-  const [brands, setBrands] = useState([])
+interface Props {
+  theme: Theme
+  setTheme: React.Dispatch<React.SetStateAction<Theme>>
+  addToast?: (t: Toast) => void
+}
+
+export default function BrandKitsBar({ theme, setTheme, addToast }: Props) {
+  const [brands, setBrands] = useState<BrandKitSummary[]>([])
   const [showSave, setShowSave] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
-  const [activeId, setActiveId] = useState(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   const refresh = async () => {
     try { setBrands((await api.listBrands()).brands || []) } catch {}
@@ -25,7 +32,7 @@ export default function BrandKitsBar({ theme, setTheme, addToast }) {
     finally { setBusy(false) }
   }
 
-  const load = async (b) => {
+  const load = async (b: BrandKitSummary) => {
     try {
       const full = await api.getBrand(b.id)
       setTheme((t) => ({ ...t, ...full }))
@@ -34,7 +41,7 @@ export default function BrandKitsBar({ theme, setTheme, addToast }) {
     } catch (e) { addToast?.({ type: 'error', message: String(e) }) }
   }
 
-  const del = async (b) => {
+  const del = async (b: BrandKitSummary) => {
     if (!confirm('Delete brand "' + b.name + '"?')) return
     await api.deleteBrand(b.id)
     if (activeId === b.id) setActiveId(null)

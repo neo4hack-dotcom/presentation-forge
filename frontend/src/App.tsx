@@ -1,36 +1,39 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import * as api from './api.js'
-import InputPanel from './components/InputPanel.jsx'
-import ThemePanel from './components/ThemePanel.jsx'
-import Preview from './components/Preview.jsx'
-import SlideList from './components/SlideList.jsx'
-import OutlineEditor from './components/OutlineEditor.jsx'
-import ToolsPanel from './components/ToolsPanel.jsx'
-import Presenter from './components/Presenter.jsx'
-import SettingsModal from './components/SettingsModal.jsx'
-import BrandKitsBar from './components/BrandKitsBar.jsx'
-import VisualIdentityPicker from './components/VisualIdentityPicker.jsx'
-import UserGuide from './components/UserGuide.jsx'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import * as api from './api'
+import type { Theme, ThemePatch, Deck, Slide, SlideLayout, ProjectListItem, Toast, StreamEvent } from './types'
 
-const DEFAULT_THEME = {
+import InputPanel, { type UploadedDoc } from './components/InputPanel'
+import ThemePanel from './components/ThemePanel'
+import Preview from './components/Preview'
+import SlideList from './components/SlideList'
+import OutlineEditor from './components/OutlineEditor'
+import ToolsPanel from './components/ToolsPanel'
+import Presenter from './components/Presenter'
+import SettingsModal from './components/SettingsModal'
+import BrandKitsBar from './components/BrandKitsBar'
+import VisualIdentityPicker from './components/VisualIdentityPicker'
+import UserGuide from './components/UserGuide'
+
+const DEFAULT_THEME: Theme = {
   name: 'Aurora',
-  primary: '#2563EB',
-  secondary: '#0EA5E9',
-  accent: '#F59E0B',
-  background: '#FFFFFF',
-  surface: '#FFFFFF',
-  text: '#0F172A',
-  muted: '#64748B',
+  primary: '#2563EB', secondary: '#0EA5E9', accent: '#F59E0B',
+  background: '#FFFFFF', surface: '#FFFFFF', text: '#0F172A', muted: '#64748B',
   heading_font: "'Inter', 'Helvetica Neue', sans-serif",
   body_font: "'Inter', 'Helvetica Neue', sans-serif",
   mono_font: "'JetBrains Mono', ui-monospace, monospace",
-  logo: null,
-  footer: '',
-  template: 'consulting',
-  dark: false,
+  logo: null, footer: '',
+  template: 'consulting', dark: false,
+  cover_style: 'minimal', divider_style: 'gradient',
+  show_logo_on_cover: true, show_logo_on_header: true, show_logo_on_footer: false,
+  logo_size_cover: 64, logo_position_cover: 'top-right',
+  logo_size_header: 28, logo_position_header: 'right',
+  logo_size_footer: 20, logo_position_footer: 'right',
 }
 
-function useDebounced(value, ms = 250) {
+// Max undo history per slide (memory bound)
+const MAX_HISTORY = 5
+
+function useDebounced<T>(value: T, ms = 250): T {
   const [v, setV] = useState(value)
   useEffect(() => {
     const t = setTimeout(() => setV(value), ms)
@@ -39,11 +42,17 @@ function useDebounced(value, ms = 250) {
   return v
 }
 
-function downloadBlob(blob, name) {
+function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = name; document.body.appendChild(a); a.click()
   document.body.removeChild(a); URL.revokeObjectURL(url)
+}
+
+/** Strip client-only fields before sending to backend. */
+function cleanForBackend(slide: Slide): Slide {
+  const { __history, __pending, ...rest } = slide
+  return rest as Slide
 }
 
 export default function App() {
@@ -53,42 +62,42 @@ export default function App() {
   const [audience, setAudience] = useState('Executive committee')
   const [tone, setTone] = useState('Senior PM / board-level')
   const [targetSlides, setTargetSlides] = useState(12)
-  const [docs, setDocs] = useState([])
+  const [docs, setDocs] = useState<UploadedDoc[]>([])
   const [generating, setGenerating] = useState(false)
   const [status, setStatus] = useState('')
-  const [error, setError] = useState(null)
-  const [toast, setToast] = useState(null)
-  const abortRef = useRef(null)
+  const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<Toast | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  // Outline-first workflow (improvement #1)
+  // Outline-first
   const [reviewOutline, setReviewOutline] = useState(true)
-  const [pendingOutline, setPendingOutline] = useState(null)
+  const [pendingOutline, setPendingOutline] = useState<Deck | null>(null)
   const [expandingOutline, setExpandingOutline] = useState(false)
 
-  // Deck state
-  const [deck, setDeck] = useState(null)
-  const [currentId, setCurrentId] = useState(null)
+  // Deck
+  const [deck, setDeck] = useState<Deck | null>(null)
+  const [currentId, setCurrentId] = useState<string | null>(null)
   const [refining, setRefining] = useState(false)
 
   // Theme
-  const [theme, setTheme] = useState(DEFAULT_THEME)
-  const [presets, setPresets] = useState({})
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME)
+  const [presets, setPresets] = useState<Record<string, ThemePatch & { name?: string }>>({})
 
   // Models
-  const [models, setModels] = useState([])
+  const [models, setModels] = useState<string[]>([])
   const [model, setModel] = useState('')
   const [outlineModel, setOutlineModel] = useState('')
 
   // Project
   const [projectName, setProjectName] = useState('Untitled deck')
-  const [projectId, setProjectId] = useState(null)
-  const [projects, setProjects] = useState([])
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const [projects, setProjects] = useState<ProjectListItem[]>([])
   const [showProjects, setShowProjects] = useState(false)
-  const [versions, setVersions] = useState([])
+  const [versions, setVersions] = useState<{ saved_at?: number; n_slides?: number }[]>([])
 
-  // Display state
+  // Display
   const [notesMode, setNotesMode] = useState(false)
-  const [tab, setTab] = useState('setup')
+  const [tab, setTab] = useState<'setup' | 'slides'>('setup')
   const [html, setHtml] = useState('')
   const [exporting, setExporting] = useState(false)
   const [presenting, setPresenting] = useState(false)
@@ -96,39 +105,35 @@ export default function App() {
   const [showGuide, setShowGuide] = useState(false)
   const [providerLabel, setProviderLabel] = useState('Ollama')
 
-  const addToast = (t) => setToast(t)
+  const addToast = (t: Toast) => setToast(t)
 
   const refreshHealth = async () => {
     try {
       const h = await api.health()
-      if (h.config) {
-        setProviderLabel(h.config.provider === 'openai' ? 'OpenAI-compat' : 'Ollama')
-      }
+      if (h.config) setProviderLabel(h.config.provider === 'openai' ? 'OpenAI-compat' : 'Ollama')
       if (h.provider_reachable && h.models) {
         setModels(h.models)
-        const cfgDefault = h.config && h.config.default_model
+        const cfgDefault = h.config?.default_model
         const preferred = (cfgDefault && h.models.includes(cfgDefault)) ? cfgDefault
           : h.models.find((m) => /gpt-oss/i.test(m))
           || h.models.find((m) => /qwen3/i.test(m))
           || h.models[0]
         setModel(preferred || '')
-        const cfgOutline = h.config && h.config.outline_model
+        const cfgOutline = h.config?.outline_model
         const fast = (cfgOutline && h.models.includes(cfgOutline)) ? cfgOutline
           : (h.models.find((m) => /qwen.*4b|gemma|phi|haiku/i.test(m)) || '')
         setOutlineModel(fast || '')
         return true
-      } else {
-        setModels([])
-        setToast({ type: 'error', message: `${h.config?.provider === 'openai' ? 'OpenAI-compat endpoint' : 'Ollama'} not reachable at ${h.config?.base_url}. Open ⚙️ Settings to fix.` })
-        return false
       }
-    } catch (e) {
+      setModels([])
+      setToast({ type: 'error', message: `${h.config?.provider === 'openai' ? 'OpenAI-compat endpoint' : 'Ollama'} not reachable at ${h.config?.base_url}. Open ⚙️ Settings to fix.` })
+      return false
+    } catch {
       setToast({ type: 'error', message: 'Backend unreachable. Did you start it? (./start.sh)' })
       return false
     }
   }
 
-  // ----- bootstrap
   useEffect(() => {
     (async () => {
       await refreshHealth()
@@ -144,34 +149,43 @@ export default function App() {
   }, [toast])
 
   const fullContext = useMemo(() => {
-    const parts = []
+    const parts: string[] = []
     if (context.trim()) parts.push('--- pasted context ---\n' + context.trim())
     for (const d of docs) if (d.text) parts.push(`--- ${d.name} (${d.chars} chars) ---\n${d.text}`)
     return parts.join('\n\n')
   }, [context, docs])
 
-  // Debounced HTML render
   const debouncedDeck = useDebounced(deck, 350)
   const debouncedTheme = useDebounced(theme, 350)
   useEffect(() => {
-    if (!debouncedDeck || !debouncedDeck.slides || debouncedDeck.slides.length === 0) {
-      setHtml('')
-      return
-    }
+    if (!debouncedDeck?.slides?.length) { setHtml(''); return }
     let cancelled = false
-    api.renderHtml(debouncedDeck, debouncedTheme).then((r) => {
-      if (!cancelled) setHtml(r.html)
-    }).catch((e) => setError(String(e)))
+    api.renderHtml(debouncedDeck, debouncedTheme).then((r) => { if (!cancelled) setHtml(r.html) })
+      .catch((e) => setError(String(e)))
     return () => { cancelled = true }
   }, [debouncedDeck, debouncedTheme])
 
-  // ----- Generate (two paths: outline-first review, or straight to slides)
+  const handleStreamEvent = (ev: StreamEvent) => {
+    if (ev.event === 'status') setStatus(ev.message)
+    else if (ev.event === 'outline') {
+      const placeholders = ev.outline.slides.map((s) => ({ ...s, __pending: true }))
+      setDeck({ ...ev.outline, slides: placeholders })
+      setStatus(`Outline ready — ${ev.outline.slides.length} slides drafting…`)
+    } else if (ev.event === 'slide') {
+      setDeck((d) => d ? { ...d, slides: d.slides.map((s) => s.id === ev.slide.id ? { ...ev.slide, __pending: false } : s) } : d)
+    } else if (ev.event === 'done') {
+      setDeck(ev.deck); setStatus('Done.')
+    } else if (ev.event === 'error') {
+      setError(ev.message); setStatus('Error.')
+    }
+  }
+
+  // ----- Generate
   const onGenerate = async () => {
     setError(null); setDeck(null); setHtml(''); setPendingOutline(null)
     setTab('slides')
 
     if (reviewOutline) {
-      // Outline only, then user edits and clicks Expand
       setGenerating(true); setStatus('Drafting outline…')
       try {
         const r = await api.generateOutline({
@@ -188,20 +202,17 @@ export default function App() {
       return
     }
 
-    // Straight-through: outline + parallel slide generation streamed
     setGenerating(true); setStatus('Starting…')
-    const controller = new AbortController()
-    abortRef.current = controller
+    const controller = new AbortController(); abortRef.current = controller
     try {
       await api.streamGenerate({
         prompt, context: fullContext, audience, tone, target_slides: targetSlides,
         model, outline_model: outlineModel || model, theme,
       }, handleStreamEvent, controller.signal)
     } catch (e) {
-      if (e.name !== 'AbortError') setError(String(e))
+      if ((e as Error).name !== 'AbortError') setError(String(e))
     } finally {
-      setGenerating(false)
-      abortRef.current = null
+      setGenerating(false); abortRef.current = null
     }
   }
 
@@ -210,44 +221,24 @@ export default function App() {
     setExpandingOutline(true); setError(null); setStatus('Expanding slides…')
     const placeholders = pendingOutline.slides.map((s) => ({ ...s, __pending: true }))
     setDeck({ ...pendingOutline, slides: placeholders })
-    const controller = new AbortController()
-    abortRef.current = controller
+    const controller = new AbortController(); abortRef.current = controller
     try {
-      await api.expandOutlineStream(
-        { outline: pendingOutline, context: fullContext, model },
-        handleStreamEvent,
-        controller.signal,
-      )
+      await api.expandOutlineStream({ outline: pendingOutline, context: fullContext, model }, handleStreamEvent, controller.signal)
       setPendingOutline(null)
     } catch (e) {
-      if (e.name !== 'AbortError') setError(String(e))
+      if ((e as Error).name !== 'AbortError') setError(String(e))
     } finally {
-      setExpandingOutline(false)
-      abortRef.current = null
-    }
-  }
-
-  const handleStreamEvent = (ev) => {
-    if (ev.event === 'status') setStatus(ev.message)
-    else if (ev.event === 'outline') {
-      const placeholders = ev.outline.slides.map((s) => ({ ...s, __pending: true }))
-      setDeck({ ...ev.outline, slides: placeholders })
-      setStatus(`Outline ready — ${ev.outline.slides.length} slides drafting…`)
-    } else if (ev.event === 'slide') {
-      setDeck((d) => d ? { ...d, slides: d.slides.map((s) => s.id === ev.slide.id ? { ...ev.slide, __pending: false } : s) } : d)
-    } else if (ev.event === 'done') {
-      setDeck(ev.deck); setStatus('Done.')
-    } else if (ev.event === 'error') {
-      setError(ev.message); setStatus('Error.')
+      setExpandingOutline(false); abortRef.current = null
     }
   }
 
   const onAbort = () => abortRef.current?.abort()
 
-  // ----- Slide ops
-  const onSelect = (id) => setCurrentId(id)
-  const onMove = (i, dir) => {
+  // ----- Slide ops with undo history
+  const onSelect = (id: string) => setCurrentId(id)
+  const onMove = (i: number, dir: number) => {
     setDeck((d) => {
+      if (!d) return d
       const arr = [...d.slides]
       const j = i + dir
       if (j < 0 || j >= arr.length) return d
@@ -255,47 +246,81 @@ export default function App() {
       return { ...d, slides: arr }
     })
   }
-  const onDelete = (i) => setDeck((d) => ({ ...d, slides: d.slides.filter((_, idx) => idx !== i) }))
+  const onDelete = (i: number) => setDeck((d) => d ? { ...d, slides: d.slides.filter((_, idx) => idx !== i) } : d)
 
-  const onRefine = async (slideId, instruction) => {
+  /** Replace a slide while pushing the OLD version into __history (capped). */
+  const replaceSlideWithHistory = (slideId: string, replacement: Slide) => {
+    setDeck((d) => {
+      if (!d) return d
+      return {
+        ...d,
+        slides: d.slides.map((s) => {
+          if (s.id !== slideId) return s
+          const { __history = [], __pending, ...prev } = s
+          const newHistory = [prev as Slide, ...__history].slice(0, MAX_HISTORY)
+          return { ...replacement, __history: newHistory, __pending: false }
+        }),
+      }
+    })
+  }
+
+  const onRefine = async (slideId: string, instruction: string) => {
+    if (!deck) return
     const slide = deck.slides.find((s) => s.id === slideId)
     if (!slide) return
     setRefining(true)
     try {
-      const r = await api.refineSlide({ slide, instruction, context: fullContext, model })
-      setDeck((d) => ({ ...d, slides: d.slides.map((s) => s.id === slideId ? r.slide : s) }))
-      setToast({ type: 'success', message: 'Slide refined.' })
+      const r = await api.refineSlide({ slide: cleanForBackend(slide), instruction, context: fullContext, model })
+      replaceSlideWithHistory(slideId, r.slide)
+      setToast({ type: 'success', message: 'Slide refined — ↶ available to undo.' })
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
     finally { setRefining(false) }
   }
 
-  const onQuickRefine = async (slideId, preset) => {
+  const onQuickRefine = async (slideId: string, preset: string) => {
+    if (!deck) return
     const slide = deck.slides.find((s) => s.id === slideId)
     if (!slide) return
     setRefining(true)
     try {
-      const r = await api.quickRefine(slide, preset, fullContext, model)
-      setDeck((d) => ({ ...d, slides: d.slides.map((s) => s.id === slideId ? r.slide : s) }))
+      const r = await api.quickRefine(cleanForBackend(slide), preset, fullContext, model)
+      replaceSlideWithHistory(slideId, r.slide)
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
     finally { setRefining(false) }
   }
 
-  const onChangeLayout = async (slideId, layout) => {
+  const onChangeLayout = async (slideId: string, layout: SlideLayout) => {
+    if (!deck) return
     const slide = deck.slides.find((s) => s.id === slideId)
     if (!slide || slide.layout === layout) return
-    // Optimistic update first
-    setDeck((d) => ({ ...d, slides: d.slides.map((s) => s.id === slideId ? { ...s, layout } : s) }))
-    // Ask LLM to recast content to fit the new layout
     setRefining(true)
     try {
       const r = await api.refineSlide({
-        slide: { ...slide, layout },
+        slide: cleanForBackend({ ...slide, layout }),
         instruction: `Recast this slide as a "${layout}" layout. Keep the title intent but reorganize the content (bullets/kpis/chart/table/timeline/etc.) to match the new layout.`,
         context: fullContext, model,
       })
-      setDeck((d) => ({ ...d, slides: d.slides.map((s) => s.id === slideId ? r.slide : s) }))
+      replaceSlideWithHistory(slideId, r.slide)
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
     finally { setRefining(false) }
+  }
+
+  /** Pop the most recent prior version and restore it. */
+  const onUndo = (slideId: string) => {
+    setDeck((d) => {
+      if (!d) return d
+      return {
+        ...d,
+        slides: d.slides.map((s) => {
+          if (s.id !== slideId) return s
+          const hist = s.__history || []
+          if (hist.length === 0) return s
+          const [prev, ...rest] = hist
+          return { ...prev, __history: rest } as Slide
+        }),
+      }
+    })
+    setToast({ type: 'success', message: 'Reverted to previous version.' })
   }
 
   // ----- Export
@@ -317,16 +342,16 @@ export default function App() {
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
   }
 
-  // ----- Projects + versions
+  // ----- Projects
   const saveProject = async () => {
     try {
-      const r = await api.saveProject({ id: projectId, name: projectName, prompt, context, audience, deck, theme })
+      const r = await api.saveProject({ id: projectId || undefined, name: projectName, prompt, context, audience, deck, theme })
       setProjectId(r.id)
       setToast({ type: 'success', message: 'Saved' + (r.n_versions ? ` (${r.n_versions} version${r.n_versions > 1 ? 's' : ''} kept)` : '') })
-      const p = await api.listProjects(); setProjects(p.projects || [])
+      setProjects((await api.listProjects()).projects || [])
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
   }
-  const loadProject = async (id) => {
+  const loadProject = async (id: string) => {
     try {
       const p = await api.loadProject(id)
       setProjectId(p.id); setProjectName(p.name || 'Loaded')
@@ -336,13 +361,11 @@ export default function App() {
       setShowProjects(false)
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
   }
-  const openVersionsFor = async (id) => {
-    try {
-      const r = await api.listVersions(id)
-      setVersions(r.versions || [])
-    } catch (e) { setToast({ type: 'error', message: String(e) }) }
+  const openVersionsFor = async (id: string) => {
+    try { setVersions((await api.listVersions(id)).versions || []) }
+    catch (e) { setToast({ type: 'error', message: String(e) }) }
   }
-  const restoreVersion = async (id, idx) => {
+  const restoreVersion = async (id: string, idx: number) => {
     try {
       const r = await api.restoreVersion(id, idx)
       if (r.deck) setDeck(r.deck)
@@ -352,14 +375,13 @@ export default function App() {
     } catch (e) { setToast({ type: 'error', message: String(e) }) }
   }
 
-  // Hotkeys
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); saveProject() }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !generating) { e.preventDefault(); onGenerate() }
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') { e.preventDefault(); onExportPdf() }
       if (e.key === 'F5' && deck) { e.preventDefault(); setPresenting(true) }
-      if (e.key === '?' && !e.target.closest('input, textarea, select')) { e.preventDefault(); setShowGuide(true) }
+      if (e.key === '?' && !(e.target as Element | null)?.closest?.('input, textarea, select')) { e.preventDefault(); setShowGuide(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -438,6 +460,7 @@ export default function App() {
                 onRefine={onRefine}
                 onQuickRefine={onQuickRefine}
                 onChangeLayout={onChangeLayout}
+                onUndo={onUndo}
                 refining={refining}
               />
             </div>
@@ -454,7 +477,13 @@ export default function App() {
           <Preview html={html} currentSlideId={currentId} slides={deck?.slides || []} notesMode={notesMode} onSelectSlide={setCurrentId} />
         </div>
 
-        <div className="pane right" style={{ padding: 0, overflow: 'auto' }}>
+        {/*
+          BUG FIX #1: right pane was inheriting display:flex from .pane, which
+          compressed sections below VisualIdentityPicker (taller content squeezed
+          the next sections to zero). We override to block + overflow-y:auto so
+          children stack at natural heights and the pane scrolls cleanly.
+        */}
+        <div className="pane right" style={{ padding: 0, overflowY: 'auto', display: 'block' }}>
           <ThemePanel
             theme={theme} setTheme={setTheme} presets={presets}
             slides={deck?.slides || []}
@@ -490,7 +519,6 @@ export default function App() {
       />
 
       <UserGuide open={showGuide} onClose={() => setShowGuide(false)} />
-
 
       {showProjects && (
         <div className="modal-bg" onClick={() => { setShowProjects(false); setVersions([]) }}>

@@ -59,7 +59,12 @@
     font-size: 14px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
   }
   .s-head .deck-title { font-weight: 600; }
-  .s-head .logo { height: 28px; }
+  .s-head .deck-title.pos-right { order: 1; }    /* push title before logo when logo is left */
+  .s-head .logo { object-fit: contain; }
+  .s-head.logo-left { flex-direction: row-reverse; }
+  .s-head.logo-center { justify-content: space-between; }
+  .s-head.logo-center .logo { position: absolute; left: 50%; transform: translateX(-50%); }
+  .s-head { position: relative; }
   .s-head .chapter { color: var(--primary); font-weight: 700; }
 
   /* Footer */
@@ -201,7 +206,23 @@
   .title-wrap .sub { font-size: 28px; color: var(--muted); max-width: 1100px; line-height: 1.35; font-weight: 400; }
   .title-wrap .meta { margin-top: 64px; display: flex; gap: 36px; font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
   .title-wrap .meta b { color: var(--text); font-weight: 700; margin-left: 8px; }
-  .title-wrap .logo-corner { position: absolute; top: 56px; right: 96px; max-height: 64px; }
+  .title-wrap .logo-corner { position: absolute; max-height: 64px; }
+  /* Cover-page logo positioning (9-grid). Logo sits inside .title-wrap which has 120px padding. */
+  .title-wrap .logo-corner.pos-top-left    { top: 56px;  left: 96px;  right: auto;  bottom: auto; }
+  .title-wrap .logo-corner.pos-top-center  { top: 56px;  left: 50%;   right: auto;  bottom: auto; transform: translateX(-50%); }
+  .title-wrap .logo-corner.pos-top-right   { top: 56px;  right: 96px; left: auto;   bottom: auto; }
+  .title-wrap .logo-corner.pos-middle-left   { top: 50%;  left: 96px;  right: auto; transform: translateY(-50%); }
+  .title-wrap .logo-corner.pos-middle-center { top: 50%;  left: 50%;   right: auto; transform: translate(-50%, -50%); }
+  .title-wrap .logo-corner.pos-middle-right  { top: 50%;  right: 96px; left: auto;  transform: translateY(-50%); }
+  .title-wrap .logo-corner.pos-bottom-left   { bottom: 56px; left: 96px;  right: auto; top: auto; }
+  .title-wrap .logo-corner.pos-bottom-center { bottom: 56px; left: 50%;   right: auto; top: auto; transform: translateX(-50%); }
+  .title-wrap .logo-corner.pos-bottom-right  { bottom: 56px; right: 96px; left: auto;  top: auto; }
+
+  .s-foot { position: relative; }
+  .s-foot .logo-foot { object-fit: contain; position: absolute; bottom: 0; }
+  .s-foot .logo-foot.pos-left   { left: 0; }
+  .s-foot .logo-foot.pos-center { left: 50%; transform: translateX(-50%); }
+  .s-foot .logo-foot.pos-right  { right: 0; }
 
   /* Section divider */
   .slide.layout-section {
@@ -502,7 +523,11 @@
 
     {% if layout == 'title' %}
       <div class="title-wrap">
-        {% if theme.logo %}<img class="logo-corner" src="{{ theme.logo }}" alt="logo">{% endif %}
+        {% if theme.logo and theme.show_logo_on_cover %}
+        <img class="logo-corner pos-{{ theme.logo_position_cover or 'top-right' }}"
+             src="{{ theme.logo }}" alt="logo"
+             style="height: {{ theme.logo_size_cover or 64 }}px; max-height: none;">
+        {% endif %}
         <h1>{{ slide.title or deck.title }}</h1>
         {% if slide.subtitle or deck.subtitle %}
         <div class="sub">{{ slide.subtitle or deck.subtitle }}</div>
@@ -530,9 +555,13 @@
 
     {% else %}
 
-      <header class="s-head">
-        <span class="deck-title">{{ deck.title }}</span>
-        {% if theme.logo %}<img class="logo" src="{{ theme.logo }}" alt="logo">{% endif %}
+      {% set h_pos = theme.logo_position_header or 'right' %}
+      <header class="s-head logo-{{ h_pos }}">
+        <span class="deck-title pos-{{ h_pos }}">{{ deck.title }}</span>
+        {% if theme.logo and theme.show_logo_on_header %}
+        <img class="logo" src="{{ theme.logo }}" alt="logo"
+             style="height: {{ theme.logo_size_header or 28 }}px;">
+        {% endif %}
       </header>
 
       {% if layout == 'bullets' %}
@@ -770,6 +799,11 @@
 
       <footer class="s-foot">
         <span class="footnote">{{ slide.footnote or theme.footer or '' }}</span>
+        {% if theme.logo and theme.show_logo_on_footer %}
+        <img class="logo-foot pos-{{ theme.logo_position_footer or 'right' }}"
+             src="{{ theme.logo }}" alt="logo"
+             style="height: {{ theme.logo_size_footer or 20 }}px;">
+        {% endif %}
         <span class="page">{{ loop.index }} / {{ total }}</span>
       </footer>
 

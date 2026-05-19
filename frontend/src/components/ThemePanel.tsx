@@ -1,67 +1,76 @@
-import React, { useRef } from 'react'
-import * as api from '../api.js'
+import { useRef } from 'react'
+import * as api from '../api'
+import type { Theme, ThemePatch, Slide, Toast } from '../types'
 
 const COLOR_FIELDS = [
-  ['primary', 'Primary'],
-  ['secondary', 'Secondary'],
-  ['accent', 'Accent'],
-  ['background', 'Background'],
-  ['surface', 'Surface'],
-  ['text', 'Text'],
-  ['muted', 'Muted'],
-]
+  ['primary', 'Primary'], ['secondary', 'Secondary'], ['accent', 'Accent'],
+  ['background', 'Background'], ['surface', 'Surface'],
+  ['text', 'Text'], ['muted', 'Muted'],
+] as const
 
-export default function ThemePanel({ theme, setTheme, presets, slides, current, onJumpToSlide, onExportPdf, onExportHtml, onSavePng, exporting, addToast }) {
-  const logoRef = useRef(null)
-  const pdfRef = useRef(null)
+interface Props {
+  theme: Theme
+  setTheme: React.Dispatch<React.SetStateAction<Theme>>
+  presets: Record<string, ThemePatch & { name?: string }>
+  slides: Slide[]
+  onExportPdf: () => void
+  onExportHtml: () => void
+  exporting: boolean
+  addToast?: (t: Toast) => void
+}
 
-  const update = (patch) => setTheme((t) => ({ ...t, ...patch }))
+export default function ThemePanel({ theme, setTheme, presets, slides, onExportPdf, onExportHtml, exporting, addToast }: Props) {
+  const logoRef = useRef<HTMLInputElement>(null)
+  const pdfRef = useRef<HTMLInputElement>(null)
 
-  const handlePdfStyle = async (file) => {
-    try {
-      const r = await api.paletteFromPdf(file)
-      setTheme((t) => ({
-        ...t,
-        primary: r.primary,
-        secondary: r.secondary,
-        background: r.background,
-        surface: r.surface,
-        text: r.text,
-        muted: r.muted,
-        dark: r.dark,
-      }))
-      addToast && addToast({ type: 'success', message: 'Palette learned from PDF' })
-    } catch (e) {
-      addToast && addToast({ type: 'error', message: String(e) })
-    }
-  }
+  const update = (patch: ThemePatch) => setTheme((t) => ({ ...t, ...patch }))
 
-  const applyPreset = (key) => {
+  const applyPreset = (key: string) => {
     const p = presets[key]
     if (!p) return
-    setTheme((t) => ({ ...t, ...p, logo: t.logo, footer: t.footer, name: p.name }))
+    setTheme((t) => ({ ...t, ...p, logo: t.logo, footer: t.footer, name: p.name || t.name }))
   }
 
-  const handleLogo = async (file) => {
+  const handleLogo = async (file: File) => {
     try {
       const r = await api.paletteFromImage(file)
       setTheme((t) => ({
         ...t,
-        logo: r.logo_data_url,
-        primary: r.primary,
-        secondary: r.secondary,
-        accent: t.accent,
-        background: r.background,
-        surface: r.surface,
-        text: r.text,
-        muted: r.muted,
-        dark: r.dark,
+        logo: r.logo_data_url || t.logo,
+        primary: r.primary || t.primary,
+        secondary: r.secondary || t.secondary,
+        background: r.background || t.background,
+        surface: r.surface || t.surface,
+        text: r.text || t.text,
+        muted: r.muted || t.muted,
+        dark: r.dark ?? t.dark,
+        // Enable showing the logo by default once one is added
+        show_logo_on_cover: t.show_logo_on_cover ?? true,
+        show_logo_on_header: t.show_logo_on_header ?? true,
       }))
-    } catch (e) {
-      // Logo only, no palette
+    } catch {
       const reader = new FileReader()
-      reader.onload = () => setTheme((t) => ({ ...t, logo: reader.result }))
+      reader.onload = () => setTheme((t) => ({ ...t, logo: String(reader.result || '') }))
       reader.readAsDataURL(file)
+    }
+  }
+
+  const handlePdfStyle = async (file: File) => {
+    try {
+      const r = await api.paletteFromPdf(file)
+      setTheme((t) => ({
+        ...t,
+        primary: r.primary || t.primary,
+        secondary: r.secondary || t.secondary,
+        background: r.background || t.background,
+        surface: r.surface || t.surface,
+        text: r.text || t.text,
+        muted: r.muted || t.muted,
+        dark: r.dark ?? t.dark,
+      }))
+      addToast?.({ type: 'success', message: 'Palette learned from PDF' })
+    } catch (e) {
+      addToast?.({ type: 'error', message: String(e) })
     }
   }
 
@@ -131,9 +140,9 @@ export default function ThemePanel({ theme, setTheme, presets, slides, current, 
         <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
           {COLOR_FIELDS.map(([k, label]) => (
             <div key={k} className="color-pick">
-              <input type="color" value={theme[k] || '#000000'} onChange={(e) => update({ [k]: e.target.value.toUpperCase() })} />
+              <input type="color" value={theme[k] || '#000000'} onChange={(e) => update({ [k]: e.target.value.toUpperCase() } as ThemePatch)} />
               <label>{label}</label>
-              <input type="text" value={theme[k] || ''} onChange={(e) => update({ [k]: e.target.value })} />
+              <input type="text" value={theme[k] || ''} onChange={(e) => update({ [k]: e.target.value } as ThemePatch)} />
             </div>
           ))}
         </div>
@@ -146,7 +155,7 @@ export default function ThemePanel({ theme, setTheme, presets, slides, current, 
 
       <div className="section">
         <h3 style={{ margin: 0, padding: 0 }}>Template</h3>
-        <select className="text" style={{ marginTop: 8 }} value={theme.template || 'consulting'} onChange={(e) => update({ template: e.target.value })}>
+        <select className="text" style={{ marginTop: 8 }} value={theme.template || 'consulting'} onChange={(e) => update({ template: e.target.value as Theme['template'] })}>
           <option value="consulting">Consulting — accent bar, McKinsey-style</option>
           <option value="executive">Executive — generous white space</option>
           <option value="dark-board">Dark board — high-contrast night mode</option>
