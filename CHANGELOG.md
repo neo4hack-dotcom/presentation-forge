@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.3.0] — 2026-05-19
+
+### Fixed
+- **Right pane no longer hides sections below Visual Identity** — the right column inherited `display: flex; flex-direction: column` from `.pane`, which compressed tall children. Overridden to `display: block; overflow-y: auto` so each section stacks at its natural height and the pane scrolls cleanly.
+
+### Added — Logo placement controls
+- Cover page logo: **9-position grid picker** (top/middle/bottom × left/center/right) + size slider (32–200 px)
+- Header logo: **3-position row picker** (left/center/right) + size slider (16–64 px)
+- Footer logo: **3-position row picker** + size slider (12–48 px)
+- Independent show/hide toggles per location
+- New theme fields: `show_logo_on_cover/header/footer`, `logo_position_cover/header/footer`, `logo_size_cover/header/footer`
+- Brand kits persist all logo placement fields
+
+### Added — Per-slide undo
+- Every refine / quick-refine / layout-change pushes the previous slide state onto a per-slide `__history` stack (max 5 versions)
+- New **↶ Undo** button on each slide card; restores the most recent prior version
+- Pill badge on each slide card showing the number of undo steps available
+
+### Changed — Migrated frontend to TypeScript
+- Strict TS with proper types throughout (`Theme`, `Deck`, `Slide`, `SlideLayout`, `ChartType`, `LLMConfig`, `StreamEvent`, etc.)
+- `tsconfig.json` with `strict: true`, `react-jsx`, ES2022 target
+- `npm run build` now runs `tsc --noEmit && vite build`
+- All 11 components converted to `.tsx`, `api.js` → `api.ts`, new `src/types.ts` as the single source of truth
+- Zero TS errors, identical UI/UX, identical feature set
+- UserGuide also migrated to `.tsx` with full type safety
+
+## [1.2.0] — 2026-05-18
+
+### Added — In-app user guide
+- New `UserGuide` modal accessible via the **❔** button in the topbar (or <kbd>?</kbd>)
+- 17 sections covering: Getting started · Workspace map · Writing a brief · Generation pipeline · Slide layouts (18) · Charts (10) · Theme · Visual identity · Brand kits · AI tools · Presenter mode · Projects & versioning · LLM settings · Export · Keyboard shortcuts · FAQ · Privacy · Glossary
+- Searchable sidebar, prev/next pagination, Steps/Tips/KBD/Tag primitives — pattern lifted from DOINg's UserGuide
+
 ## [1.1.0] — 2026-05-18
 
 ### Added — Apply AI critic suggestions

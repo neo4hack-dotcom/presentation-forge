@@ -19,6 +19,11 @@ BRAND_FIELDS = (
     "heading_font", "body_font", "mono_font",
     "logo", "footer", "template", "dark",
     "cover_style", "divider_style", "accent_shape", "index_style",
+    # Logo placement (v1.3)
+    "show_logo_on_cover", "show_logo_on_header", "show_logo_on_footer",
+    "logo_size_cover", "logo_position_cover",
+    "logo_size_header", "logo_position_header",
+    "logo_size_footer", "logo_position_footer",
 )
 
 

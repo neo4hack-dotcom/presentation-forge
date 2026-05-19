@@ -1,23 +1,27 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type WheelEvent } from 'react'
+import type { Slide } from '../types'
 
-/**
- * Live deck preview. Receives full HTML string and renders it in a sandboxed iframe.
- * Supports zoom, current-slide focus, and "speaker notes" toggle.
- */
-export default function Preview({ html, currentSlideId, slides, notesMode, onSelectSlide }) {
-  const iframeRef = useRef(null)
+interface Props {
+  html: string
+  currentSlideId: string | null
+  slides: Slide[]
+  notesMode: boolean
+  onSelectSlide?: (id: string) => void
+}
+
+export default function Preview({ html, currentSlideId, slides, notesMode }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
   const [zoom, setZoom] = useState(0.5)
 
-  // Inject HTML
   useEffect(() => {
     const f = iframeRef.current
     if (!f || !html) return
     const doc = f.contentDocument
+    if (!doc) return
     doc.open(); doc.write(html); doc.close()
     if (notesMode) doc.body.classList.add('show-notes')
   }, [html, notesMode])
 
-  // Scroll to current slide
   useEffect(() => {
     const f = iframeRef.current
     if (!f || !currentSlideId) return
@@ -27,8 +31,7 @@ export default function Preview({ html, currentSlideId, slides, notesMode, onSel
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [currentSlideId, html])
 
-  // Wheel zoom (cmd/ctrl + wheel)
-  const onWheel = (e) => {
+  const onWheel = (e: WheelEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
       setZoom((z) => Math.max(0.15, Math.min(1.2, z + (e.deltaY < 0 ? 0.05 : -0.05))))
@@ -63,10 +66,7 @@ export default function Preview({ html, currentSlideId, slides, notesMode, onSel
         </div>
       </div>
       <div className="preview-canvas" onWheel={onWheel}>
-        <div style={{
-          width: 1600 * zoom + 48,
-          margin: '0 auto',
-        }}>
+        <div style={{ width: 1600 * zoom + 48, margin: '0 auto' }}>
           <iframe
             ref={iframeRef}
             title="deck preview"

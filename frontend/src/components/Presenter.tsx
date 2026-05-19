@@ -1,10 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { Slide } from '../types'
 
-/** Fullscreen presenter mode: arrow keys navigate, Esc exits, N toggles notes. */
-export default function Presenter({ html, slides, onClose }) {
+interface Props {
+  html: string
+  slides: Slide[]
+  onClose: () => void
+}
+
+export default function Presenter({ html, slides, onClose }: Props) {
   const [idx, setIdx] = useState(0)
   const [showNotes, setShowNotes] = useState(false)
-  const iframeRef = useRef(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const slide = slides?.[idx]
 
@@ -12,6 +18,7 @@ export default function Presenter({ html, slides, onClose }) {
     const f = iframeRef.current
     if (!f) return
     const doc = f.contentDocument
+    if (!doc) return
     doc.open(); doc.write(html); doc.close()
     if (showNotes) doc.body.classList.add('show-notes')
   }, [html, showNotes])
@@ -23,7 +30,7 @@ export default function Presenter({ html, slides, onClose }) {
   }, [idx, slide, html])
 
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') setIdx((i) => Math.min(i + 1, (slides?.length || 1) - 1))
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') setIdx((i) => Math.max(i - 1, 0))
@@ -35,6 +42,10 @@ export default function Presenter({ html, slides, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [slides, onClose])
 
+  const w = typeof window !== 'undefined' ? window.innerWidth : 1600
+  const h = typeof window !== 'undefined' ? window.innerHeight : 900
+  const scale = Math.min(w * 0.95 / 1600, h * 0.85 / 900)
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'black', zIndex: 500, display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, display: 'flex', gap: 8 }}>
@@ -45,23 +56,12 @@ export default function Presenter({ html, slides, onClose }) {
         <button className="btn danger tiny" onClick={onClose}>Exit</button>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <div style={{
-          width: '95vw', maxWidth: 1600,
-          aspectRatio: '16 / 9',
-          overflow: 'hidden',
-          boxShadow: '0 30px 80px rgba(0,0,0,.5)',
-          background: 'white',
-        }}>
+        <div style={{ width: '95vw', maxWidth: 1600, aspectRatio: '16 / 9', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,.5)', background: 'white' }}>
           <iframe
             ref={iframeRef}
             title="presenter"
             sandbox="allow-same-origin allow-scripts"
-            style={{
-              width: 1600, height: 900,
-              border: 'none',
-              transform: `scale(min(${typeof window !== 'undefined' ? (window.innerWidth * 0.95 / 1600) : 1}, ${typeof window !== 'undefined' ? (window.innerHeight * 0.85 / 900) : 1}))`,
-              transformOrigin: 'top left',
-            }}
+            style={{ width: 1600, height: 900, border: 'none', transform: `scale(${scale})`, transformOrigin: 'top left' }}
           />
         </div>
       </div>
