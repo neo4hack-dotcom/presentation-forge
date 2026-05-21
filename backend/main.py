@@ -18,9 +18,10 @@ from typing import Optional
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import generator, llm, parsers, renderer, enhancements, brand_kits, config as cfg
@@ -583,3 +584,40 @@ async def critic_fix_slide(req: CriticFixRequest):
         return {"slide": revised}
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+# ---------- Static frontend (built React SPA) ----------
+# Must be declared LAST so /api/* routes take precedence over the SPA catch-all.
+
+FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
+
+if FRONTEND_DIST.is_dir():
+    # Serve hashed Vite assets (/assets/*) directly
+    _assets_dir = FRONTEND_DIST / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+    _INDEX_HTML = FRONTEND_DIST / "index.html"
+
+    @app.get("/")
+    async def _spa_root():
+        return FileResponse(_INDEX_HTML)
+
+    # SPA catch-all: serve a real static file if it exists, otherwise index.html
+    # so the React app can handle client-side routes. /api/* explicit routes
+    # always win over this catch-all.
+    @app.get("/{full_path:path}")
+    async def _spa_catchall(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = FRONTEND_DIST / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_INDEX_HTML)
+else:
+    @app.get("/")
+    async def _no_build():
+        return JSONResponse(
+            {"error": "Frontend not built. Run `npm --prefix frontend run build` (the launcher script does this automatically)."},
+            status_code=503,
+        )

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.1] — 2026-05-19
+
+### Changed — Single-process launch (DOINg-style)
+- **One command, one port.** `./start.sh` (or `.\start.ps1`) now builds the React frontend then runs a single FastAPI process on `http://localhost:8765` that serves both the API and the built SPA. No more separate Vite dev server in the default flow.
+- FastAPI mounts `frontend/dist/assets/` and adds a catch-all that returns `index.html` for non-API routes (so client-side routing keeps working).
+- Launchers free port 8765 if a stale process is squatting on it, then `exec` uvicorn — no more zombie backends from previous sessions.
+- New env vars / flags: `PF_PORT`, `PF_SKIP_BUILD` (bash) · `-Port`, `-SkipBuild` (PowerShell).
+- Dev hot-reload still available by running `npm run dev` + uvicorn separately (Vite proxies `/api` → 8765 as before).
+
 ## [1.3.0] — 2026-05-19
 
 ### Fixed
