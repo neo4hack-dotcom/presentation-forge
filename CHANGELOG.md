@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.2] — 2026-05-21
+
+### Fixed — Robust request handling (`error handling request /api/events` and friends)
+- **Unknown `/api/*` paths now return a clean diagnostic 404** instead of being swallowed by the SPA catch-all or bubbling up as `ERROR: Error handling request` in the uvicorn log. The response includes the method, the path, and a hint pointing to the README endpoint list.
+- **SSE streaming endpoint no longer errors on client disconnect.** Checks `request.is_disconnected()` between yields and re-raises `asyncio.CancelledError` cleanly — generation stops without writing to a closed transport.
+- **Global exception handler** added: any unhandled error becomes a JSON 500 with `{ error, type, path }` and a full stack-trace log, instead of uvicorn's generic message.
+- **Path-traversal safe** SPA fallback: requests like `/../../../etc/passwd` now serve `index.html` instead of attempting to resolve outside `frontend/dist/`.
+
 ## [1.3.1] — 2026-05-19
 
 ### Changed — Single-process launch (DOINg-style)
