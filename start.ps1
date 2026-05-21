@@ -1,7 +1,11 @@
 # Presentation Forge — Windows PowerShell launcher
+# One process, one port. FastAPI serves the API AND the built React frontend on :8765.
 # Usage: .\start.ps1
 # Requires: Python 3.10+, Node.js 18+, (optional) Ollama
-[CmdletBinding()] param()
+[CmdletBinding()] param(
+    [int]$Port = 8765,
+    [switch]$SkipBuild
+)
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -31,18 +35,19 @@ foreach ($cmd in @("py", "python", "python3")) {
         }
     } catch {}
 }
-if (-not $Python) {
-    Err "Python 3.10+ not found. Install from https://www.python.org/downloads/"
-}
+if (-not $Python) { Err "Python 3.10+ not found. Install from https://www.python.org/downloads/" }
 
-# ---- Node
+# ---- Node + npm
 try {
     $nv = node --version 2>&1
     if ($LASTEXITCODE -ne 0) { throw }
     Log "Node: $nv"
-} catch {
-    Err "Node.js not found. Install from https://nodejs.org/"
-}
+} catch { Err "Node.js not found. Install from https://nodejs.org/" }
+try {
+    $npmv = npm --version 2>&1
+    if ($LASTEXITCODE -ne 0) { throw }
+    Log "npm: $npmv"
+} catch { Err "npm not found (should ship with Node.js)." }
 
 # ---- Ollama (optional)
 $OllamaExe = $null
@@ -54,10 +59,9 @@ foreach ($p in @("ollama", "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe")) {
 }
 if (-not $OllamaExe) {
     Warn "Ollama not found — install from https://ollama.com OR configure an OpenAI-compatible"
-    Warn "endpoint in ⚙️ Settings after the app starts."
+    Warn "endpoint in Settings after the app starts."
 } else {
     Log "Ollama found: $OllamaExe"
-    # Start daemon if not already running
     try {
         $null = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
         Log "Ollama daemon already running"
@@ -71,10 +75,9 @@ if (-not $OllamaExe) {
 }
 
 # ---- Python venv
-$VenvDir   = Join-Path $Root "backend\.venv"
-$VenvPy    = Join-Path $VenvDir "Scripts\python.exe"
-$VenvPip   = Join-Path $VenvDir "Scripts\pip.exe"
-$VenvActivate = Join-Path $VenvDir "Scripts\Activate.ps1"
+$VenvDir = Join-Path $Root "backend\.venv"
+$VenvPy  = Join-Path $VenvDir "Scripts\python.exe"
+$VenvPip = Join-Path $VenvDir "Scripts\pip.exe"
 
 if (-not (Test-Path $VenvDir)) {
     Log "Creating Python virtual environment..."
@@ -86,11 +89,8 @@ Log "Installing / updating Python dependencies..."
 & $VenvPip install --quiet -r (Join-Path $Root "backend\requirements.txt")
 
 # Playwright
-try {
-    & $VenvPy -c "import playwright" 2>&1 | Out-Null
-} catch {
-    & $VenvPip install --quiet playwright
-}
+try { & $VenvPy -c "import playwright" 2>&1 | Out-Null }
+catch { & $VenvPip install --quiet playwright }
 $ChromiumCache = Join-Path $env:LOCALAPPDATA "ms-playwright"
 if (-not (Test-Path $ChromiumCache)) {
     Log "Installing Playwright Chromium (one-time, ~150 MB)..."
@@ -99,7 +99,7 @@ if (-not (Test-Path $ChromiumCache)) {
     Log "Playwright Chromium already installed"
 }
 
-# ---- Frontend dependencies
+# ---- Frontend dependencies + build (single-process: backend serves the bundle)
 $NodeModules = Join-Path $Root "frontend\node_modules"
 if (-not (Test-Path $NodeModules)) {
     Log "Installing JS dependencies..."
@@ -108,29 +108,35 @@ if (-not (Test-Path $NodeModules)) {
     Pop-Location
 }
 
-# ---- Start backend (in a separate window so logs are visible)
-Log "Starting backend on http://localhost:8765 ..."
-$BackendArgs = "-NoExit -Command `"Set-Location '$Root'; & '$VenvActivate'; python -m uvicorn backend.main:app --host 127.0.0.1 --port 8765`""
-$BackendProc = Start-Process powershell -ArgumentList $BackendArgs -PassThru
-
-# Give uvicorn a moment to come up
-Start-Sleep -Seconds 3
-
-# ---- Start frontend
-Log "Starting frontend on http://localhost:5173 ..."
-Write-Host ""
-Write-Host "  ┌─────────────────────────────────────────┐" -ForegroundColor Cyan
-Write-Host "  │  Open http://localhost:5173  in browser  │" -ForegroundColor Cyan
-Write-Host "  └─────────────────────────────────────────┘" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Ctrl+C stops the frontend. Close the backend window to stop it." -ForegroundColor DarkGray
-Write-Host ""
-
-Push-Location (Join-Path $Root "frontend")
-try {
-    npm run dev
-} finally {
-    # Attempt clean shutdown of backend
-    try { $BackendProc | Stop-Process -Force -ErrorAction SilentlyContinue } catch {}
+if (-not $SkipBuild) {
+    Log "Building frontend (TypeScript -> static bundle)..."
+    Push-Location (Join-Path $Root "frontend")
+    npm run build
     Pop-Location
+} else {
+    Log "-SkipBuild set -> skipping frontend build"
 }
+
+$IndexHtml = Join-Path $Root "frontend\dist\index.html"
+if (-not (Test-Path $IndexHtml)) { Err "frontend\dist\index.html missing -- build failed." }
+
+# ---- Free the port if a stale process is squatting on it
+$busy = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if ($busy) {
+    Warn "Port $Port busy -- stopping owning process(es)"
+    $busy | ForEach-Object {
+        try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } catch {}
+    }
+    Start-Sleep -Seconds 1
+}
+
+# ---- Run: single process serves API + SPA
+Write-Host ""
+Write-Host "  ┌──────────────────────────────────────────────┐" -ForegroundColor Cyan
+Write-Host "  │  Presentation Forge running on               │" -ForegroundColor Cyan
+Write-Host ("  │  -> http://localhost:{0,-25}│" -f $Port)        -ForegroundColor Cyan
+Write-Host "  │  Ctrl+C to stop.                             │" -ForegroundColor Cyan
+Write-Host "  └──────────────────────────────────────────────┘" -ForegroundColor Cyan
+Write-Host ""
+
+& $VenvPy -m uvicorn backend.main:app --host 127.0.0.1 --port $Port

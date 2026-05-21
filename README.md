@@ -24,9 +24,26 @@ A 100% local app that turns a brief + reference documents into a **board-grade p
 ```
 Or simply double-click **`start.bat`** in Explorer.
 
-> **First run** — the script creates a Python venv, installs all deps, and downloads Playwright Chromium (~150 MB). Takes 2–5 min on first launch.
+> **First run** — the script creates a Python venv, installs all deps, downloads Playwright Chromium (~150 MB), then **builds the React frontend**. Takes 2–5 min on first launch; subsequent launches are seconds.
 
-Then open <http://localhost:5173>. The backend runs in a separate PowerShell window.
+Then open <http://localhost:8765>. **One process, one port** — FastAPI serves both the API and the built React bundle.
+
+### Options
+- `PF_PORT=9000 ./start.sh` — change the port
+- `PF_SKIP_BUILD=1 ./start.sh` — skip the frontend rebuild (use the existing `frontend/dist/`)
+- Windows: `.\start.ps1 -Port 9000 -SkipBuild`
+
+### Dev mode (hot-reload frontend)
+If you're iterating on the UI and want Vite HMR:
+```bash
+# Terminal 1 — backend (FastAPI)
+source backend/.venv/bin/activate
+python -m uvicorn backend.main:app --port 8765 --reload
+
+# Terminal 2 — frontend (Vite dev server with /api → 8765 proxy)
+cd frontend && npm run dev
+# Then open http://localhost:5173
+```
 
 ### Prerequisites
 | | macOS/Linux | Windows |
@@ -60,8 +77,16 @@ ollama pull gpt-oss:120b-cloud
 
 ## Architecture
 ```
-frontend (Vite, :5173) ──/api proxy──▶ backend (FastAPI, :8765) ──HTTP──▶ Ollama (:11434)
+                ┌─────────────────────────────────────────┐
+browser ───────▶│ FastAPI :8765                           │──HTTP──▶ Ollama :11434
+                │   /api/*         → backend handlers      │       (or any OpenAI-compatible endpoint)
+                │   /            ┐                         │
+                │   /assets/*    │ → frontend/dist/ (Vite) │
+                │   /<spa-route> ┘                         │
+                └─────────────────────────────────────────┘
 ```
+
+Same model as DOINg: build the React app once into `frontend/dist/`, then FastAPI serves both the API routes and the static bundle from a single Python process. No CORS gymnastics, no separate dev server in production, nothing to wire up.
 
 All assets, uploads, exports, and saved projects live under `backend/storage/`.
 
