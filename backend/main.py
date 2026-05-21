@@ -18,11 +18,16 @@ from typing import Optional
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+import logging
+import traceback
+
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger("presentation_forge")
 
 from . import generator, llm, parsers, renderer, enhancements, brand_kits, config as cfg
 from .style_extractor import extract_palette
@@ -45,6 +50,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------- Global exception handler ----------
+# Any unhandled error becomes a clean JSON 500 instead of bubbling up to uvicorn
+# as "ERROR: Error handling request". HTTPException is left to FastAPI's own handler.
+
+@app.exception_handler(Exception)
+async def _global_exception_handler(request: Request, exc: Exception):  # noqa: ARG001
+    # asyncio.CancelledError is fired when a client disconnects mid-stream —
+    # that's not an error, just normal client behaviour.
+    if isinstance(exc, asyncio.CancelledError):
+        return Response(status_code=499)  # nginx convention: "Client Closed Request"
+    logger.error(
+        "Unhandled exception on %s %s: %s\n%s",
+        request.method, request.url.path, exc, traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc), "type": exc.__class__.__name__, "path": request.url.path},
+    )
 
 
 # ---------- Models ----------
@@ -325,7 +350,7 @@ async def quick_refinements():
 
 
 @app.post("/api/generate/stream")
-async def generate_stream(req: GenerateRequest):
+async def generate_stream(req: GenerateRequest, request: Request):
     """Server-sent events: outline, then each slide as it completes."""
 
     async def event_stream():
@@ -338,9 +363,18 @@ async def generate_stream(req: GenerateRequest):
                 target_slides=req.target_slides,
                 model=req.model,
             ):
+                # Stop emitting if the client has gone away — prevents uvicorn
+                # from raising on a closed transport.
+                if await request.is_disconnected():
+                    logger.info("SSE client disconnected — aborting stream")
+                    return
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
                 await asyncio.sleep(0)  # cooperative
-        except Exception as e:
+        except asyncio.CancelledError:
+            logger.info("SSE stream cancelled (client closed connection)")
+            raise
+        except Exception as e:  # noqa: BLE001
+            logger.exception("SSE stream failed")
             yield f"data: {json.dumps({'event':'error','message':str(e)})}\n\n"
 
     return StreamingResponse(
@@ -591,6 +625,26 @@ async def critic_fix_slide(req: CriticFixRequest):
 
 FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 
+
+# Explicit catch-all for unknown /api/* paths.
+# This MUST be declared after every real /api/* route. Without it, the SPA
+# catch-all below would intercept GETs to e.g. /api/events (or GETs to a
+# POST-only route like /api/generate/stream) and return the SPA HTML / a
+# misleading 404. With this in place, /api/* always returns clean JSON.
+@app.api_route("/api/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"], include_in_schema=False)
+async def _api_unknown(full_path: str, request: Request):
+    logger.warning("Unknown API endpoint hit: %s /api/%s", request.method, full_path)
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "error": "Unknown API endpoint",
+            "method": request.method,
+            "path": f"/api/{full_path}",
+            "hint": "See README.md → API endpoints for the full list.",
+        },
+    )
+
+
 if FRONTEND_DIST.is_dir():
     # Serve hashed Vite assets (/assets/*) directly
     _assets_dir = FRONTEND_DIST / "assets"
@@ -599,23 +653,29 @@ if FRONTEND_DIST.is_dir():
 
     _INDEX_HTML = FRONTEND_DIST / "index.html"
 
-    @app.get("/")
+    @app.get("/", include_in_schema=False)
     async def _spa_root():
         return FileResponse(_INDEX_HTML)
 
     # SPA catch-all: serve a real static file if it exists, otherwise index.html
-    # so the React app can handle client-side routes. /api/* explicit routes
-    # always win over this catch-all.
-    @app.get("/{full_path:path}")
+    # so the React app can handle client-side routes. /api/* is already
+    # handled by the explicit _api_unknown route above, so it never reaches here.
+    @app.get("/{full_path:path}", include_in_schema=False)
     async def _spa_catchall(full_path: str):
+        # Defensive: should never trigger because _api_unknown catches /api/* first.
         if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="Not found")
-        candidate = FRONTEND_DIST / full_path
+            raise HTTPException(status_code=404, detail="Unknown API endpoint")
+        # Block path traversal — only serve files actually inside FRONTEND_DIST.
+        candidate = (FRONTEND_DIST / full_path).resolve()
+        try:
+            candidate.relative_to(FRONTEND_DIST.resolve())
+        except ValueError:
+            return FileResponse(_INDEX_HTML)
         if candidate.is_file():
             return FileResponse(candidate)
         return FileResponse(_INDEX_HTML)
 else:
-    @app.get("/")
+    @app.get("/", include_in_schema=False)
     async def _no_build():
         return JSONResponse(
             {"error": "Frontend not built. Run `npm --prefix frontend run build` (the launcher script does this automatically)."},
